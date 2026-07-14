@@ -79,30 +79,18 @@ def generar_dashboard():
         :root {{
             --artimo-rojo-oscuro:   #BC1818;
             --artimo-rojo-vivo:     #E10B17;
+            --artimo-rojo-medio:    #E42520;
             --artimo-gris:          #5A5A59;
             --artimo-negro:         #1A1A1A;
             --artimo-blanco:        #FFFFFF;
             --artimo-gris-claro:    #F2F2F2;
         }}
 
-        /* FIX: Antialiasing para que las letras no se vean borrosas y aumento de peso base a 400 */
-        body {{ 
-            font-family: 'Open Sans', Arial, sans-serif; font-weight: 400; 
-            background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; 
-            -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-        }}
+        body {{ font-family: 'Open Sans', Arial, sans-serif; font-weight: 400; background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }}
         
-        /* FIX: Topbar más alta para que el logo vertical quepa sin aplastarse */
-        .topbar {{ 
-            background: var(--artimo-negro); color: var(--artimo-blanco); min-height: 64px; 
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; 
-            padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); gap: 15px;
-        }}
+        .topbar {{ background: var(--artimo-negro); color: var(--artimo-blanco); min-height: 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); gap: 15px; }}
         .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 300px; overflow: hidden; }}
-        
-        /* FIX: Logo sin restricción de ancho para que mantenga proporción */
         .topbar-brand img {{ height: 48px; width: auto; object-fit: contain; }}
-        
         .topbar-title-container {{ flex: 1; min-width: 0; }}
         .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
         .topbar-sub {{ font-size: 12px; color: #D1D5DB; font-weight: 400; margin: 0; margin-top: 2px; }}
@@ -110,30 +98,31 @@ def generar_dashboard():
         .topbar-right {{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
         .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 250px; text-overflow: ellipsis; }}
         
-        .btn-action {{ 
-            padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: 'Open Sans';
-            cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px;
-        }}
+        .btn-action {{ padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: 'Open Sans'; cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; }}
         .btn-action:hover {{ opacity: 0.85; }}
         .btn-pdf {{ background: var(--artimo-rojo-oscuro); color: white; }}
         .btn-csv {{ background: #10B981; color: white; }}
+        .btn-quick-wins {{ background: var(--artimo-rojo-vivo); color: white; font-size: 13px; padding: 10px 18px; box-shadow: 0 2px 6px rgba(225,11,23,0.3); }}
 
         .main-content {{ max-width: 1400px; margin: 0 auto; padding: 24px; }}
-        
-        .alert-box {{ background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris); padding: 12px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }}
+        .alert-box {{ background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris); padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
+        .alert-box-info {{ flex: 1; min-width: 200px; }}
         .alert-box p {{ margin: 0; font-size: 13px; font-weight: 600; }}
         .active-tags {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
         .tag {{ background: var(--artimo-gris-claro); color: var(--artimo-negro); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px; }}
         .tag button {{ background: none; border: none; color: var(--artimo-rojo-oscuro); font-weight: bold; cursor: pointer; }}
         .btn-clear {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer; }}
 
-        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }}
+        /* 4 KPIs con la nueva adición */
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }}
         .kpi-card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; display: flex; flex-direction: column; gap: 6px; }}
         .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
+        .kpi-card.prio-2 {{ border-top: 3px solid var(--artimo-rojo-medio); }}
         .kpi-label {{ font-size: 12px; color: var(--artimo-gris); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }}
         .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; }}
         .kpi-sub {{ font-size: 12px; color: var(--artimo-gris); font-weight: 400; }}
         .kpi-p1 .kpi-value {{ color: var(--artimo-rojo-oscuro); }}
+        .kpi-p2 .kpi-value {{ color: var(--artimo-rojo-medio); }}
         .kpi-ok .kpi-value {{ color: #10B981; }}
         .kpi-dark .kpi-value {{ color: var(--artimo-negro); }}
 
@@ -180,11 +169,14 @@ def generar_dashboard():
 
     <div class="main-content" id="report_area">
         <div class="alert-box" data-html2canvas-ignore="true">
-            <div>
+            <div class="alert-box-info">
                 <p>Filtros de Dashboard Interactivo</p>
                 <div id="active_filters" class="active-tags">
                     <span class="text-sub" style="font-size:12px; font-weight:400;">Haz clic en las gráficas para filtrar la información.</span>
                 </div>
+            </div>
+            <div>
+                <button onclick="applyQuickWins()" class="btn-action btn-quick-wins">⚡ Ver Victorias Rápidas (1 a 3 días)</button>
             </div>
         </div>
 
@@ -203,6 +195,12 @@ def generar_dashboard():
                 <div class="kpi-label">Equipos Offline</div>
                 <div id="kpi_offline" class="kpi-value">0</div>
                 <div class="kpi-sub">Unidades fuera de cobertura</div>
+            </div>
+            <!-- NUEVO KPI: Días Totales Perdidos -->
+            <div class="kpi-card kpi-p2 prio-2">
+                <div class="kpi-label">Días Totales Perdidos</div>
+                <div id="kpi_lost_days" class="kpi-value">0</div>
+                <div class="kpi-sub">Suma acumulada offline (Riesgo)</div>
             </div>
         </div>
 
@@ -270,6 +268,14 @@ def generar_dashboard():
             }});
         }}
 
+        function applyQuickWins() {{
+            currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: '1 a 3 días' }};
+            document.getElementById('client_select').value = 'TODOS';
+            updateDashboard();
+            // Scroll a la tabla para ver la lista de victorias rápidas
+            document.getElementById('table_title').scrollIntoView({{ behavior: 'smooth' }});
+        }}
+
         function filterByClient(val) {{ currentFilters.cliente = val; updateDashboard(); }}
         function clearFilter(key) {{
             if(key === 'cliente') document.getElementById('client_select').value = 'TODOS';
@@ -297,12 +303,20 @@ def generar_dashboard():
 
             const total = filteredData.length;
             const online = filteredData.filter(d => d.estado === 'Operando').length;
+            const offline = total - online;
+            
+            // Calculo del Dolor Financiero (Suma de Días Offline)
+            const lostDays = filteredData.reduce((acc, curr) => acc + (curr.dias_offline > 0 ? curr.dias_offline : 0), 0);
+
             document.getElementById('kpi_total').textContent = total;
             document.getElementById('kpi_online').textContent = total > 0 ? Math.round((online/total)*100) + '%' : '0%';
-            document.getElementById('kpi_offline').textContent = total - online;
+            document.getElementById('kpi_offline').textContent = offline;
+            // Formatear el número de días perdidos para que se lea fácil (Ej. 1,500)
+            document.getElementById('kpi_lost_days').textContent = lostDays.toLocaleString();
 
             const tableTitle = document.getElementById('table_title');
-            if(currentFilters.estado === 'Operando') tableTitle.textContent = "Equipos en Línea";
+            if(currentFilters.gravedad === '1 a 3 días') tableTitle.textContent = "⚡ Victorias Rápidas (Equipos de Fácil Recuperación)";
+            else if(currentFilters.estado === 'Operando') tableTitle.textContent = "Equipos en Línea";
             else if (currentFilters.estado === 'Fuera de cobertura' || currentFilters.gravedad) tableTitle.textContent = "Equipos Críticos";
             else tableTitle.textContent = "Detalle General de Equipos";
 
@@ -331,7 +345,7 @@ def generar_dashboard():
         function renderDonaChart(data) {{
             const op = data.filter(d => d.estado === 'Operando').length;
             const off = data.filter(d => d.estado === 'Fuera de cobertura').length;
-            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Estado General</b>', font: {{size: 15}} }}, legend: {{ orientation: 'h', y: -0.1 }} }};
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Estado General</b>', font: {{size: 15}}, x: 0.5, xanchor: 'center' }}, legend: {{ orientation: 'h', y: -0.1 }} }};
             Plotly.react('chart_dona', [{{ values: [op, off], labels: ['Operando', 'Fuera de cobertura'], type: 'pie', hole: 0.5, marker: {{ colors: ['#10B981', '#BC1818'] }}, textinfo: 'value+percent' }}], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_dona').on('plotly_click', d => {{ currentFilters.estado = (currentFilters.estado === d.points[0].label) ? null : d.points[0].label; updateDashboard(); }});
         }}
@@ -343,7 +357,7 @@ def generar_dashboard():
                 d.estado === 'Operando' ? map[d.tecnologia].op++ : map[d.tecnologia].off++;
             }});
             const x = Object.keys(map).sort();
-            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Tecnología</b>', font: {{size: 15}} }}, barmode: 'group', legend: {{ orientation: 'h', y: -0.2 }} }};
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Tecnología</b>', font: {{size: 15}}, x: 0.5, xanchor: 'center' }}, barmode: 'group', legend: {{ orientation: 'h', y: -0.2 }} }};
             Plotly.react('chart_tech', [ {{ x: x, y: x.map(k=>map[k].op), name: 'Operando', type: 'bar', marker: {{ color: '#10B981' }} }}, {{ x: x, y: x.map(k=>map[k].off), name: 'Offline', type: 'bar', marker: {{ color: '#BC1818' }} }} ], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_tech').on('plotly_click', d => {{ currentFilters.tecnologia = (currentFilters.tecnologia === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
         }}
@@ -352,7 +366,7 @@ def generar_dashboard():
             const map = {{ "1 a 3 días": 0, "4 a 7 días": 0, "Más de 7 días": 0, "Sin registro previo": 0 }};
             data.filter(d => d.estado !== 'Operando').forEach(d => {{ if(map[d.gravedad] !== undefined) map[d.gravedad]++; }});
             const x = Object.keys(map);
-            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Gravedad (Offline)</b>', font: {{size: 15}} }} }};
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Gravedad (Offline)</b>', font: {{size: 15}}, x: 0.5, xanchor: 'center' }} }};
             Plotly.react('chart_gravity', [{{ x: x, y: x.map(k=>map[k]), type: 'bar', marker: {{ color: ['#E63B1E', '#E42520', '#BC1818', '#5A5A59'] }} }}], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_gravity').on('plotly_click', d => {{ currentFilters.gravedad = (currentFilters.gravedad === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
         }}
@@ -364,7 +378,7 @@ def generar_dashboard():
             
             const layout = {{ 
                 ...plotlyLayoutBase, 
-                title: {{ text: '<b>Top 10 Clientes Críticos</b>', font: {{size: 15}} }}, 
+                title: {{ text: '<b>Top 10 Clientes Críticos</b>', font: {{size: 15}}, x: 0.5, xanchor: 'center' }}, 
                 margin: {{ t:40, b:30, l:20, r:20 }},
                 yaxis: {{ automargin: true }} 
             }};
@@ -442,7 +456,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard actualizado: Topbar corregida, logo sin distorsión y botones listos.")
+    print("Dashboard actualizado: Victorias Rápidas y Días Perdidos implementados.")
 
 if __name__ == "__main__":
     generar_dashboard()
