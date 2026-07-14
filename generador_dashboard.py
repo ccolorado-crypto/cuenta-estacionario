@@ -72,9 +72,8 @@ def generar_dashboard():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{nombre_dealer} — Dashboard ÁRTIMO</title>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
-    <!-- Librería para exportar a PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {{
@@ -86,35 +85,38 @@ def generar_dashboard():
             --artimo-gris-claro:    #F2F2F2;
         }}
 
-        body {{ font-family: 'Open Sans', Arial, sans-serif; font-weight: 300; background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; }}
+        /* FIX: Antialiasing para que las letras no se vean borrosas y aumento de peso base a 400 */
+        body {{ 
+            font-family: 'Open Sans', Arial, sans-serif; font-weight: 400; 
+            background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; 
+            -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+        }}
         
-        /* FIX: Topbar Responsiva y adaptada a nombres largos */
+        /* FIX: Topbar más alta para que el logo vertical quepa sin aplastarse */
         .topbar {{ 
-            background: var(--artimo-negro); color: var(--artimo-blanco); min-height: 56px; 
+            background: var(--artimo-negro); color: var(--artimo-blanco); min-height: 64px; 
             display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; 
             padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); gap: 15px;
         }}
         .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 300px; overflow: hidden; }}
-        .topbar-brand img {{ height: 36px; object-fit: contain; }}
+        
+        /* FIX: Logo sin restricción de ancho para que mantenga proporción */
+        .topbar-brand img {{ height: 48px; width: auto; object-fit: contain; }}
+        
         .topbar-title-container {{ flex: 1; min-width: 0; }}
-        .topbar-title {{ 
-            font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; /* Evita que rompa el diseño */
-        }}
-        .topbar-sub {{ font-size: 11px; color: #9CA3AF; font-weight: 300; margin: 0; margin-top: 2px; }}
+        .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .topbar-sub {{ font-size: 12px; color: #D1D5DB; font-weight: 400; margin: 0; margin-top: 2px; }}
         
         .topbar-right {{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
         .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 250px; text-overflow: ellipsis; }}
         
-        /* Botones de Descarga */
         .btn-action {{ 
             padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; font-family: 'Open Sans';
-            cursor: pointer; border: none; transition: background 0.2s; display: flex; align-items: center; gap: 6px;
+            cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px;
         }}
+        .btn-action:hover {{ opacity: 0.85; }}
         .btn-pdf {{ background: var(--artimo-rojo-oscuro); color: white; }}
-        .btn-pdf:hover {{ background: #9a1414; }}
         .btn-csv {{ background: #10B981; color: white; }}
-        .btn-csv:hover {{ background: #059669; }}
 
         .main-content {{ max-width: 1400px; margin: 0 auto; padding: 24px; }}
         
@@ -128,9 +130,9 @@ def generar_dashboard():
         .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }}
         .kpi-card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; display: flex; flex-direction: column; gap: 6px; }}
         .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
-        .kpi-label {{ font-size: 11px; color: var(--artimo-gris); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }}
+        .kpi-label {{ font-size: 12px; color: var(--artimo-gris); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }}
         .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; }}
-        .kpi-sub {{ font-size: 11px; color: var(--artimo-gris); font-weight: 300; }}
+        .kpi-sub {{ font-size: 12px; color: var(--artimo-gris); font-weight: 400; }}
         .kpi-p1 .kpi-value {{ color: var(--artimo-rojo-oscuro); }}
         .kpi-ok .kpi-value {{ color: #10B981; }}
         .kpi-dark .kpi-value {{ color: var(--artimo-negro); }}
@@ -141,13 +143,12 @@ def generar_dashboard():
         .table-section {{ background: var(--artimo-blanco); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden; }}
         .table-header {{ padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
         .table-header h2 {{ margin: 0; font-size: 18px; font-weight: 700; }}
-        .header-actions {{ display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }}
-        .search-input {{ padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px; font-size: 13px; font-family: 'Open Sans'; outline: none; width: 200px; }}
+        .search-input {{ padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px; font-size: 13px; font-family: 'Open Sans'; outline: none; width: 250px; }}
         .search-input:focus {{ border-color: var(--artimo-rojo-oscuro); }}
 
         .fc-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
         .fc-table th {{ background: #F9FAFB; padding: 12px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--artimo-gris); font-weight: 600; text-align: left; }}
-        .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid #F3F4F6; font-weight: 300; }}
+        .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid #F3F4F6; font-weight: 400; }}
         .fc-table tr:hover td {{ background: #FAFAFA; }}
 
         .badge-ok {{ background: rgba(16,185,129,0.2); color: #10B981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
@@ -155,22 +156,22 @@ def generar_dashboard():
         .badge-p2 {{ background: rgba(245,158,11,0.12); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
         .badge-mid {{ background: rgba(90,90,89,0.1); color: var(--artimo-gris); border: 1px solid rgba(90,90,89,0.2); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
         .font-bold {{ font-weight: 700; color: var(--artimo-negro); }}
-        .text-sub {{ color: var(--artimo-gris); }}
+        .text-sub {{ color: var(--artimo-gris); font-weight: 400; }}
     </style>
 </head>
 <body>
 
     <div class="topbar">
         <div class="topbar-brand">
-            <!-- FIX: Controlamos el ancho de la imagen para que no explote si no carga -->
-            <img src="artimo_logo.jpg" alt="Logo Ártimo" style="height:32px; min-width:80px;" onerror="this.onerror=null; this.src='https://via.placeholder.com/120x40/BC1818/FFFFFF?text=ARTIMO';"/>
+            <img src="artimo_logo.jpg" alt="Logo Ártimo" onerror="this.onerror=null; this.src='https://via.placeholder.com/120x40/BC1818/FFFFFF?text=ARTIMO';"/>
             <div class="topbar-title-container">
                 <p class="topbar-title" title="{nombre_dealer} Dashboard">{nombre_dealer} Dashboard</p>
                 <p class="topbar-sub">Ártimo Telematics · Actualizado: {fecha_actualizacion}</p>
             </div>
         </div>
         <div class="topbar-right">
-            <button onclick="exportToPDF()" class="btn-action btn-pdf">📄 PDF Dashboard</button>
+            <button onclick="exportToCSV()" class="btn-action btn-csv">📥 Exportar Data (CSV)</button>
+            <button onclick="exportToPDF()" class="btn-action btn-pdf">📄 Descargar PDF</button>
             <select id="client_select" class="filter-select" onchange="filterByClient(this.value)">
                 <option value="TODOS">-- TODOS LOS CLIENTES --</option>
             </select>
@@ -178,11 +179,11 @@ def generar_dashboard():
     </div>
 
     <div class="main-content" id="report_area">
-        <div class="alert-box" data-html2canvas-ignore="true"> <!-- Ignorar en PDF -->
+        <div class="alert-box" data-html2canvas-ignore="true">
             <div>
                 <p>Filtros de Dashboard Interactivo</p>
                 <div id="active_filters" class="active-tags">
-                    <span class="text-sub" style="font-size:12px; font-weight:300;">Haz clic en las gráficas para filtrar la información.</span>
+                    <span class="text-sub" style="font-size:12px; font-weight:400;">Haz clic en las gráficas para filtrar la información.</span>
                 </div>
             </div>
         </div>
@@ -216,11 +217,10 @@ def generar_dashboard():
             <div class="table-header">
                 <div>
                     <h2 id="table_title">Detalle General de Equipos</h2>
-                    <span class="text-sub" style="font-size: 12px;">Mostrando todos los equipos según los filtros seleccionados.</span>
+                    <span class="text-sub" style="font-size: 13px;">Mostrando todos los equipos según los filtros seleccionados.</span>
                 </div>
-                <div class="header-actions" data-html2canvas-ignore="true">
+                <div data-html2canvas-ignore="true">
                     <input type="text" id="table_search" class="search-input" placeholder="Buscar generador..." oninput="onSearchTable(this.value)">
-                    <button onclick="exportToCSV()" class="btn-action btn-csv">📥 Exportar CSV</button>
                 </div>
             </div>
             <div style="overflow-x: auto;">
@@ -325,7 +325,7 @@ def generar_dashboard():
                 }}
             }});
             if(has) container.innerHTML += `<button class="btn-clear" onclick="clearAllFilters()">Limpiar Filtros</button>`;
-            else container.innerHTML = `<span class="text-sub" style="font-size:12px; font-weight:300;">Haz clic en las gráficas para filtrar.</span>`;
+            else container.innerHTML = `<span class="text-sub" style="font-size:13px; font-weight:400;">Haz clic en las gráficas para filtrar.</span>`;
         }}
 
         function renderDonaChart(data) {{
@@ -362,7 +362,6 @@ def generar_dashboard():
             data.filter(d => d.estado !== 'Operando').forEach(d => map[d.cliente] = (map[d.cliente]||0) + 1);
             const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
             
-            // FIX: Automargin en el eje Y para que los nombres largos no se recorten
             const layout = {{ 
                 ...plotlyLayoutBase, 
                 title: {{ text: '<b>Top 10 Clientes Críticos</b>', font: {{size: 15}} }}, 
@@ -402,8 +401,6 @@ def generar_dashboard():
             }});
             tbody.innerHTML = tableHTML;
         }}
-
-        // --- FUNCIONES DE EXPORTACIÓN ---
         
         function exportToCSV() {{
             const dataToExport = getFilteredData().filter(d => d.generador.toLowerCase().includes(searchTerm));
@@ -413,12 +410,11 @@ def generar_dashboard():
             const csvRows = [headers.join(',')];
 
             dataToExport.forEach(r => {{
-                // Protegemos strings con comas envolviéndolos en comillas dobles
                 const values = [ `"${{r.generador}}"`, `"${{r.cliente}}"`, `"${{r.tecnologia}}"`, `"${{r.estado}}"`, `"${{r.fecha}}"`, `"${{r.gravedad}}"`, r.dias_offline ];
                 csvRows.push(values.join(','));
             }});
 
-            const blob = new Blob(["\\uFEFF" + csvRows.join('\\n')], {{ type: 'text/csv;charset=utf-8;' }}); // \\uFEFF for Excel UTF-8
+            const blob = new Blob(["\\uFEFF" + csvRows.join('\\n')], {{ type: 'text/csv;charset=utf-8;' }});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
@@ -437,8 +433,6 @@ def generar_dashboard():
                 html2canvas:  {{ scale: 2, useCORS: true }},
                 jsPDF:        {{ unit: 'in', format: 'a4', orientation: 'landscape' }}
             }};
-            
-            // html2pdf procesará el div 'report_area' (ignora los botones gracias a data-html2canvas-ignore)
             html2pdf().set(opt).from(element).save();
         }}
     </script>
@@ -448,7 +442,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard actualizado con exportación PDF/CSV y UX mejorada.")
+    print("Dashboard actualizado: Topbar corregida, logo sin distorsión y botones listos.")
 
 if __name__ == "__main__":
     generar_dashboard()
