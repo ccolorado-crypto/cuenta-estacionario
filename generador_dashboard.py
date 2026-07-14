@@ -1,21 +1,19 @@
 import pandas as pd
 import plotly.express as px
 from datetime import date
+import sys
 
 def generar_dashboard():
     print("Leyendo el archivo data.ods...")
     
-    # 1. Cargar los datos
-    # Usamos engine='odf' para poder leer formatos de LibreOffice/OpenOffice
+    # 1. Cargar los datos desde la carpeta data
     try:
-      df = pd.read_excel('data/data.ods', engine='odf')
-  except Exception as e:
-        import sys
+        df = pd.read_excel('data/data.ods', engine='odf')
+    except Exception as e:
         print(f"Error crítico al leer el archivo: {e}")
-        sys.exit(1) # Esto le dice a GitHub Actions que aborte el proceso
+        sys.exit(1) # Esto detiene el proceso de GitHub Actions si falla
 
     # Mapeo de columnas basándonos en tu descripción (A=0, B=1... F=5, R=17)
-    # Tomamos los nombres de las columnas en esos índices
     col_tecnologia = df.columns[5]  # Columna F
     col_fecha = df.columns[17]      # Columna R
 
@@ -49,24 +47,22 @@ def generar_dashboard():
                   title='Estado General de Conectividad de los Equipos',
                   color='Estado', 
                   color_discrete_map={'Operando':'#28a745', 'Fuera de cobertura':'#dc3545'},
-                  hole=0.4) # Estilo de dona para que se vea más moderno
+                  hole=0.4)
 
     # 4. Gráfico 2: Conectividad por Tecnología (Regla de la columna F)
     print("Generando gráfico por tecnología...")
-    # Agrupamos por tecnología (Col F) y el nuevo estado
     conteo_tech = df.groupby([col_tecnologia, 'Estado_Conectividad']).size().reset_index(name='Cantidad')
     
     fig2 = px.bar(conteo_tech, x=col_tecnologia, y='Cantidad', color='Estado_Conectividad',
                   title='Estado de Conectividad por Tecnología',
-                  barmode='group', # Barras agrupadas lado a lado
+                  barmode='group',
                   color_discrete_map={'Operando':'#28a745', 'Fuera de cobertura':'#dc3545'},
                   labels={col_tecnologia: 'Tecnología', 'Cantidad': 'Número de Equipos'})
 
     # 5. Exportar a Dashboard HTML
     print("Ensamblando el dashboard HTML...")
-    # Convertimos los gráficos de Plotly a fragmentos HTML interactivos
     html_fig1 = fig1.to_html(full_html=False, include_plotlyjs='cdn')
-    html_fig2 = fig2.to_html(full_html=False, include_plotlyjs=False) # Ya se incluyó el script arriba
+    html_fig2 = fig2.to_html(full_html=False, include_plotlyjs=False)
 
     # Plantilla web responsiva
     dashboard_html = f"""
@@ -103,7 +99,7 @@ def generar_dashboard():
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(dashboard_html)
 
-    print("¡Listo! Se ha creado el archivo 'dashboard_conectividad.html'. Puedes abrirlo con cualquier navegador web.")
+    print("¡Listo! Se ha creado el archivo 'dashboard_conectividad.html'.")
 
 if __name__ == "__main__":
     generar_dashboard()
