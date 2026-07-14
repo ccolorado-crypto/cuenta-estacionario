@@ -12,11 +12,12 @@ def generar_dashboard():
         print(f"Error crítico al leer el archivo: {e}")
         sys.exit(1)
 
-    # MAPEO DE COLUMNAS
+    # MAPEO DE COLUMNAS (A=0, B=1, C=2, D=3, F=5, G=6, R=17)
     col_dealer = df.columns[1]
     col_cliente = df.columns[2]
     col_generador = df.columns[3]
     col_tecnologia = df.columns[5]
+    col_modelo = df.columns[6]      # NUEVA: Columna G para el Script/Modelo
     col_fecha = df.columns[17]
 
     nombre_dealer = str(df[col_dealer].dropna().iloc[0]) if not df[col_dealer].dropna().empty else "Dealer Principal"
@@ -25,17 +26,36 @@ def generar_dashboard():
     fecha_hoy = date.today()
     
     records = []
+    
+    # Listas de modelos para validación rápida (en minúsculas para evitar errores de tipeo)
+    rule3_list = [
+        "amf-25|trifasico", "amf-5|trifasico", "amf-9|trifasico", "camkit-1|análogo",
+        "camkit-1|carterpillaremcp-4.2", "camkit-1|clinicamarlygen-01",
+        "camkit-1|clinicamarlygen-02", "camkit-1|deepsea", "camkit-1|ps0600",
+        "camkit-2|amf-25tcp/ip", "camkit-2|deepsea|trifasico|24vdc",
+        "camkit-2|pcc1302-pcc1.1|trifasico|12vdc", "camkit-2|pcc1302-pcc1.1|trifasico|24vdc",
+        "camkit-2|pcc2.x-3.x|trifasico|24vdc", "camkit-2|plazaamericas-gen01",
+        "camkit-2|plazaamericas-gen03", "camkit-2|plazaamericas-gen04",
+        "camkit-2|pso600|trifasico|12vdc", "comap amf25 electrónico",
+        "modbusgenset pcc 1301/1.x/0500", "modbusgenset pcc2x3x"
+    ]
+    rule4_list = ["comap ws40", "comap ws40 bci", "comaps"]
+
     for idx, row in df.iterrows():
         cliente = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else "Sin Cliente"
         generador = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else "Sin Nombre"
         tech = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else "Desconocida"
+        modelo_raw = str(row.iloc[6]).strip() if pd.notna(row.iloc[6]) else "Sin Modelo"
+        modelo_clean = modelo_raw.lower()
         
         raw_fecha = row.iloc[17]
         fecha_str = "Sin registro"
         status = "Fuera de cobertura"
         gravity = "Sin registro previo"
         dias_offline = -1
+        plan_accion = ""
         
+        # 1. Definir el estado base
         if pd.notna(raw_fecha):
             fecha_str = raw_fecha.strftime("%d/%m/%Y")
             if raw_fecha >= fecha_hoy:
@@ -45,21 +65,47 @@ def generar_dashboard():
             else:
                 status = "Fuera de cobertura"
                 dias_offline = (fecha_hoy - raw_fecha).days
+                if dias_offline <= 3: gravity = "1 a 3 días"
+                elif dias_offline <= 7: gravity = "4 a 7 días"
+                else: gravity = "Más de 7 días"
+
+        # 2. Definir el Plan de Acción (Reglas de Negocio)
+        
+        # Reglas 1 y 2: Exemys (Aplica SIN IMPORTAR si está operando o no)
+        if modelo_clean in ["exemys digital", "exemysdigital"]:
+            plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a tecnología CAMKIT2."
+        elif "exemys analoga" in modelo_clean or "exemys análoga" in modelo_clean:
+            plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a tecnología COMAP AMF5."
+        
+        # Reglas 3 y 4: Aplican SOLO si está fuera de cobertura
+        elif status == "Fuera de cobertura":
+            if modelo_clean in rule3_list:
+                plan_accion = "🛠️ Se recomienda ir al sitio y validar dispositivo, accesorios, señal GPRS, añadir cable extensor para antena GSM. Actualizar FW si es necesario."
+            elif modelo_clean in rule4_list:
+                plan_accion = "🔍 Se recomienda validar qué modelo de ComAp está instalado. Si es 2G debe reemplazarse por ComAp AMF5."
+            else:
+                # Comportamiento por defecto para los demás modelos offline según los días
                 if dias_offline <= 3:
-                    gravity = "1 a 3 días"
+                    plan_accion = "⚡ Intento de reinicio remoto. Verificar cortes de energía o saldo SIM."
                 elif dias_offline <= 7:
-                    gravity = "4 a 7 días"
+                    plan_accion = "📞 Contactar cliente para validar estado físico del equipo."
                 else:
-                    gravity = "Más de 7 días"
+                    plan_accion = "🚨 Visita técnica urgente para revisión general de hardware."
+        
+        # Si está operando y no es Exemys
+        else:
+            plan_accion = "✅ Monitoreo continuo. Equipo estable."
                     
         records.append({
             "generador": generador,
             "cliente": cliente,
             "tecnologia": tech,
+            "modelo": modelo_raw,
             "fecha": fecha_str,
             "estado": status,
             "gravedad": gravity,
-            "dias_offline": dias_offline
+            "dias_offline": dias_offline,
+            "plan_accion": plan_accion
         })
 
     data_json = json.dumps(records, ensure_ascii=False)
@@ -113,7 +159,6 @@ def generar_dashboard():
         .tag button {{ background: none; border: none; color: var(--artimo-rojo-oscuro); font-weight: bold; cursor: pointer; }}
         .btn-clear {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer; }}
 
-        /* 4 KPIs con la nueva adición */
         .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }}
         .kpi-card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; display: flex; flex-direction: column; gap: 6px; }}
         .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
@@ -140,12 +185,13 @@ def generar_dashboard():
         .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid #F3F4F6; font-weight: 400; }}
         .fc-table tr:hover td {{ background: #FAFAFA; }}
 
-        .badge-ok {{ background: rgba(16,185,129,0.2); color: #10B981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
-        .badge-p1 {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
-        .badge-p2 {{ background: rgba(245,158,11,0.12); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
-        .badge-mid {{ background: rgba(90,90,89,0.1); color: var(--artimo-gris); border: 1px solid rgba(90,90,89,0.2); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
+        .badge-ok {{ background: rgba(16,185,129,0.2); color: #10B981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
+        .badge-p1 {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
+        .badge-p2 {{ background: rgba(245,158,11,0.12); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
+        .badge-mid {{ background: rgba(90,90,89,0.1); color: var(--artimo-gris); border: 1px solid rgba(90,90,89,0.2); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
         .font-bold {{ font-weight: 700; color: var(--artimo-negro); }}
         .text-sub {{ color: var(--artimo-gris); font-weight: 400; }}
+        .text-action {{ font-size: 12px; font-weight: 600; color: #111827; line-height: 1.4; display: block; max-width: 320px; }}
     </style>
 </head>
 <body>
@@ -196,7 +242,6 @@ def generar_dashboard():
                 <div id="kpi_offline" class="kpi-value">0</div>
                 <div class="kpi-sub">Unidades fuera de cobertura</div>
             </div>
-            <!-- NUEVO KPI: Días Totales Perdidos -->
             <div class="kpi-card kpi-p2 prio-2">
                 <div class="kpi-label">Días Totales Perdidos</div>
                 <div id="kpi_lost_days" class="kpi-value">0</div>
@@ -227,10 +272,11 @@ def generar_dashboard():
                         <tr>
                             <th>Generador</th>
                             <th>Cliente</th>
-                            <th>Tecnología</th>
+                            <th>Modelo / Script</th>
                             <th>Estado</th>
                             <th>Última Conexión</th>
                             <th>Severidad</th>
+                            <th>Plan de Acción Sugerido</th>
                         </tr>
                     </thead>
                     <tbody id="table_body"></tbody>
@@ -272,7 +318,6 @@ def generar_dashboard():
             currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: '1 a 3 días' }};
             document.getElementById('client_select').value = 'TODOS';
             updateDashboard();
-            // Scroll a la tabla para ver la lista de victorias rápidas
             document.getElementById('table_title').scrollIntoView({{ behavior: 'smooth' }});
         }}
 
@@ -304,14 +349,11 @@ def generar_dashboard():
             const total = filteredData.length;
             const online = filteredData.filter(d => d.estado === 'Operando').length;
             const offline = total - online;
-            
-            // Calculo del Dolor Financiero (Suma de Días Offline)
             const lostDays = filteredData.reduce((acc, curr) => acc + (curr.dias_offline > 0 ? curr.dias_offline : 0), 0);
 
             document.getElementById('kpi_total').textContent = total;
             document.getElementById('kpi_online').textContent = total > 0 ? Math.round((online/total)*100) + '%' : '0%';
             document.getElementById('kpi_offline').textContent = offline;
-            // Formatear el número de días perdidos para que se lea fácil (Ej. 1,500)
             document.getElementById('kpi_lost_days').textContent = lostDays.toLocaleString();
 
             const tableTitle = document.getElementById('table_title');
@@ -411,7 +453,15 @@ def generar_dashboard():
                     else gravBadge = `<span class="badge-mid">${{r.gravedad}}</span>`;
                 }}
                 
-                tableHTML += `<tr><td class="font-bold">${{r.generador}}</td><td class="text-sub">${{r.cliente}}</td><td class="text-sub">${{r.tecnologia}}</td><td>${{statusBadge}}</td><td class="text-sub">${{r.fecha}}</td><td>${{gravBadge}}</td></tr>`;
+                tableHTML += `<tr>
+                    <td class="font-bold">${{r.generador}}</td>
+                    <td class="text-sub">${{r.cliente}}</td>
+                    <td class="text-sub">${{r.modelo}}</td>
+                    <td>${{statusBadge}}</td>
+                    <td class="text-sub">${{r.fecha}}</td>
+                    <td>${{gravBadge}}</td>
+                    <td><span class="text-action">${{r.plan_accion}}</span></td>
+                </tr>`;
             }});
             tbody.innerHTML = tableHTML;
         }}
@@ -420,11 +470,11 @@ def generar_dashboard():
             const dataToExport = getFilteredData().filter(d => d.generador.toLowerCase().includes(searchTerm));
             if (dataToExport.length === 0) return alert("No hay datos para exportar.");
 
-            const headers = ["Generador", "Cliente", "Tecnologia", "Estado", "Ultima_Conexion", "Severidad", "Dias_Desconectado"];
+            const headers = ["Generador", "Cliente", "Tecnologia", "Modelo_Script", "Estado", "Ultima_Conexion", "Severidad", "Dias_Desconectado", "Plan_de_Accion"];
             const csvRows = [headers.join(',')];
 
             dataToExport.forEach(r => {{
-                const values = [ `"${{r.generador}}"`, `"${{r.cliente}}"`, `"${{r.tecnologia}}"`, `"${{r.estado}}"`, `"${{r.fecha}}"`, `"${{r.gravedad}}"`, r.dias_offline ];
+                const values = [ `"${{r.generador}}"`, `"${{r.cliente}}"`, `"${{r.tecnologia}}"`, `"${{r.modelo}}"`, `"${{r.estado}}"`, `"${{r.fecha}}"`, `"${{r.gravedad}}"`, r.dias_offline, `"${{r.plan_accion}}"` ];
                 csvRows.push(values.join(','));
             }});
 
@@ -456,7 +506,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard actualizado: Victorias Rápidas y Días Perdidos implementados.")
+    print("Dashboard actualizado con Plan de Acción por Modelo/Script.")
 
 if __name__ == "__main__":
     generar_dashboard()
