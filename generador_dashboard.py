@@ -8,10 +8,11 @@ def generar_dashboard():
     # 1. Cargar los datos
     # Usamos engine='odf' para poder leer formatos de LibreOffice/OpenOffice
     try:
-        df = pd.read_excel('data.ods', engine='odf')
-    except Exception as e:
-        print(f"Error al leer el archivo: {e}")
-        return
+      df = pd.read_excel('data/data.ods', engine='odf')
+  except Exception as e:
+        import sys
+        print(f"Error crítico al leer el archivo: {e}")
+        sys.exit(1) # Esto le dice a GitHub Actions que aborte el proceso
 
     # Mapeo de columnas basándonos en tu descripción (A=0, B=1... F=5, R=17)
     # Tomamos los nombres de las columnas en esos índices
