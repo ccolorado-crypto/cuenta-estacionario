@@ -79,7 +79,6 @@ def generar_dashboard():
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <style>
         :root {{
-            /* Paleta ÁRTIMO */
             --artimo-rojo-oscuro:   #BC1818;
             --artimo-rojo-vivo:     #E10B17;
             --artimo-rojo-medio:    #E42520;
@@ -90,117 +89,51 @@ def generar_dashboard():
             --artimo-gris-claro:    #F2F2F2;
         }}
 
-        body {{
-            font-family: 'Open Sans', Arial, sans-serif;
-            font-weight: 300;
-            background: #F4F5F7;
-            color: var(--artimo-negro);
-            margin: 0; padding: 0;
-        }}
-
-        /* Topbar Oficial */
-        .topbar {{
-            background: var(--artimo-negro);
-            color: var(--artimo-blanco);
-            height: 56px;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 24px;
-            position: sticky; top: 0; z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }}
+        body {{ font-family: 'Open Sans', Arial, sans-serif; font-weight: 300; background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; }}
+        .topbar {{ background: var(--artimo-negro); color: var(--artimo-blanco); height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }}
         .topbar-brand {{ display: flex; align-items: center; gap: 12px; }}
         .topbar-title {{ font-size: 18px; font-weight: 600; letter-spacing: 0.5px; margin: 0; }}
         .topbar-sub {{ font-size: 11px; color: #9CA3AF; font-weight: 300; margin: 0; }}
-        
-        .filter-select {{
-            background: #2a2a2a; color: white; border: 1px solid #4B5563;
-            padding: 6px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans';
-            outline: none; cursor: pointer;
-        }}
+        .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; }}
         .filter-select:focus {{ border-color: var(--artimo-rojo-oscuro); }}
-
-        .main-content {{
-            max-width: 1400px; margin: 0 auto; padding: 24px;
-        }}
-
-        /* Alertas Interactivas */
-        .alert-box {{
-            background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris);
-            padding: 12px 20px; border-radius: 8px; margin-bottom: 24px;
-            display: flex; justify-content: space-between; align-items: center;
-        }}
+        .main-content {{ max-width: 1400px; margin: 0 auto; padding: 24px; }}
+        
+        .alert-box {{ background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris); padding: 12px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }}
         .alert-box p {{ margin: 0; font-size: 13px; font-weight: 600; }}
         .active-tags {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
-        .tag {{
-            background: var(--artimo-gris-claro); color: var(--artimo-negro);
-            font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px;
-            border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px;
-        }}
+        .tag {{ background: var(--artimo-gris-claro); color: var(--artimo-negro); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px; }}
         .tag button {{ background: none; border: none; color: var(--artimo-rojo-oscuro); font-weight: bold; cursor: pointer; }}
-        .btn-clear {{
-            background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3);
-            font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer;
-        }}
+        .btn-clear {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer; }}
 
-        /* KPI Cards Oficiales */
-        .kpi-grid {{
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px; margin-bottom: 24px;
-        }}
-        .kpi-card {{
-            background: var(--artimo-blanco); border-radius: 12px; padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB;
-            display: flex; flex-direction: column; gap: 6px;
-        }}
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }}
+        .kpi-card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; display: flex; flex-direction: column; gap: 6px; }}
         .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
         .kpi-label {{ font-size: 11px; color: var(--artimo-gris); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }}
         .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; }}
         .kpi-sub {{ font-size: 11px; color: var(--artimo-gris); font-weight: 300; }}
-        
         .kpi-p1 .kpi-value {{ color: var(--artimo-rojo-oscuro); }}
         .kpi-ok .kpi-value {{ color: #10B981; }}
         .kpi-dark .kpi-value {{ color: var(--artimo-negro); }}
 
-        /* Contenedores Generales */
-        .card-grid {{
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px; margin-bottom: 24px;
-        }}
-        .card {{
-            background: var(--artimo-blanco); border-radius: 12px; padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB;
-            transition: transform 0.15s, box-shadow 0.15s;
-        }}
+        .card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 24px; }}
+        .card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; transition: transform 0.15s, box-shadow 0.15s; }}
         .card:hover {{ transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.13); }}
 
-        /* Tablas de Datos Oficiales */
-        .table-section {{
-            background: var(--artimo-blanco); border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden;
-        }}
-        .table-header {{ padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; }}
+        .table-section {{ background: var(--artimo-blanco); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden; }}
+        .table-header {{ padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
         .table-header h2 {{ margin: 0; font-size: 18px; font-weight: 700; }}
-        .search-input {{
-            padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px;
-            font-size: 13px; font-family: 'Open Sans'; outline: none; width: 250px;
-        }}
+        .search-input {{ padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px; font-size: 13px; font-family: 'Open Sans'; outline: none; width: 250px; }}
         .search-input:focus {{ border-color: var(--artimo-rojo-oscuro); }}
 
         .fc-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-        .fc-table th {{
-            background: #F9FAFB; padding: 12px 20px; font-size: 11px; text-transform: uppercase;
-            letter-spacing: 0.4px; color: var(--artimo-gris); font-weight: 600; text-align: left;
-        }}
+        .fc-table th {{ background: #F9FAFB; padding: 12px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--artimo-gris); font-weight: 600; text-align: left; }}
         .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid #F3F4F6; font-weight: 300; }}
         .fc-table tr:hover td {{ background: #FAFAFA; }}
 
-        /* Badges / Pills */
         .badge-ok {{ background: rgba(16,185,129,0.2); color: #10B981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
         .badge-p1 {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
         .badge-p2 {{ background: rgba(245,158,11,0.12); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
         .badge-mid {{ background: rgba(90,90,89,0.1); color: var(--artimo-gris); border: 1px solid rgba(90,90,89,0.2); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
-        
-        /* Modificadores Tipográficos */
         .font-bold {{ font-weight: 700; color: var(--artimo-negro); }}
         .text-sub {{ color: var(--artimo-gris); }}
     </style>
@@ -244,7 +177,7 @@ def generar_dashboard():
                 <div class="kpi-sub">Operando correctamente</div>
             </div>
             <div class="kpi-card kpi-p1 prio-1">
-                <div class="kpi-label">Equipos Críticos</div>
+                <div class="kpi-label">Equipos Offline</div>
                 <div id="kpi_offline" class="kpi-value">0</div>
                 <div class="kpi-sub">Unidades fuera de cobertura</div>
             </div>
@@ -259,7 +192,10 @@ def generar_dashboard():
 
         <div class="table-section">
             <div class="table-header">
-                <h2>Detalle de Equipos Críticos</h2>
+                <div>
+                    <h2 id="table_title">Detalle General de Equipos</h2>
+                    <span id="table_subtitle" class="text-sub" style="font-size: 12px;">Mostrando todos los equipos según los filtros seleccionados.</span>
+                </div>
                 <input type="text" id="table_search" class="search-input" placeholder="Buscar generador..." oninput="onSearchTable(this.value)">
             </div>
             <div style="overflow-x: auto;">
@@ -288,7 +224,6 @@ def generar_dashboard():
         let currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
         let searchTerm = '';
 
-        // Estilos de Plotly adaptados a ÁRTIMO
         const plotlyLayoutBase = {{
             font: {{ family: 'Open Sans, Arial, sans-serif', color: '#1A1A1A' }},
             paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
@@ -337,11 +272,23 @@ def generar_dashboard():
             document.getElementById('kpi_online').textContent = total > 0 ? Math.round((online/total)*100) + '%' : '0%';
             document.getElementById('kpi_offline').textContent = total - online;
 
+            // Actualizar Título de la tabla dinámicamente
+            const tableTitle = document.getElementById('table_title');
+            if(currentFilters.estado === 'Operando') {{
+                tableTitle.textContent = "Equipos en Línea";
+            }} else if (currentFilters.estado === 'Fuera de cobertura' || currentFilters.gravedad) {{
+                tableTitle.textContent = "Equipos Críticos";
+            }} else {{
+                tableTitle.textContent = "Detalle General de Equipos";
+            }}
+
             renderActiveFilterTags();
             renderDonaChart(filteredData);
             renderTechChart(filteredData);
             renderGravityChart(filteredData);
             renderTopClientsChart(filteredData);
+            
+            // Renderizamos la tabla pasando la data ya filtrada para optimizar recursos
             renderTableOnly(filteredData);
         }}
 
@@ -420,6 +367,7 @@ def generar_dashboard():
             }});
         }}
 
+        // --- RENDERIZADO OPTIMIZADO DE TABLA ---
         function renderTableOnly(dataToRender) {{
             const data = dataToRender || rawData.filter(d => 
                 (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente) &&
@@ -430,11 +378,23 @@ def generar_dashboard():
             
             const tbody = document.getElementById('table_body');
             const msg = document.getElementById('no_data_message');
-            tbody.innerHTML = '';
-            const finalData = data.filter(d => d.generador.toLowerCase().includes(searchTerm));
             
-            if(finalData.length === 0) {{ msg.style.display = 'block'; return; }}
+            // 1. Filtrado local por caja de búsqueda
+            let finalData = data.filter(d => d.generador.toLowerCase().includes(searchTerm));
+            
+            // 2. Ordenamiento matemático: de más días desconectado (crítico) a menos.
+            finalData.sort((a, b) => b.dias_offline - a.dias_offline);
+            
+            if(finalData.length === 0) {{ 
+                tbody.innerHTML = '';
+                msg.style.display = 'block'; 
+                return; 
+            }}
             msg.style.display = 'none';
+
+            // 3. Optimización de Rendimiento (String Builder)
+            // En vez de actualizar la pantalla fila por fila, construimos todo el HTML en memoria y lo pegamos una sola vez.
+            let tableHTML = '';
 
             finalData.forEach(r => {{
                 const statusBadge = r.estado === 'Operando' ? '<span class="badge-ok">Operando</span>' : '<span class="badge-p1">Offline</span>';
@@ -445,7 +405,7 @@ def generar_dashboard():
                     else gravBadge = `<span class="badge-mid">${{r.gravedad}}</span>`;
                 }}
                 
-                tbody.innerHTML += `
+                tableHTML += `
                     <tr>
                         <td class="font-bold">${{r.generador}}</td>
                         <td class="text-sub">${{r.cliente}}</td>
@@ -456,6 +416,9 @@ def generar_dashboard():
                     </tr>
                 `;
             }});
+
+            // 4. Inyección única al DOM (Súper rápido)
+            tbody.innerHTML = tableHTML;
         }}
     </script>
 </body>
@@ -464,7 +427,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard corporativo ÁRTIMO generado exitosamente.")
+    print("Dashboard corporativo ÁRTIMO actualizado y optimizado exitosamente.")
 
 if __name__ == "__main__":
     generar_dashboard()
