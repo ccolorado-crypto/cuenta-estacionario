@@ -13,22 +13,19 @@ def generar_dashboard():
         sys.exit(1)
 
     # MAPEO EXACTO DE COLUMNAS (A=0, B=1, C=2, D=3, F=5, R=17)
-    col_dealer = df.columns[1]      # Columna B: Dealer
-    col_cliente = df.columns[2]     # Columna C: Cliente
-    col_generador = df.columns[3]   # Columna D: Nombre del generador
-    col_tecnologia = df.columns[5]  # Columna F: Tecnología
-    col_fecha = df.columns[17]      # Columna R: Fecha de conexión
+    col_dealer = df.columns[1]
+    col_cliente = df.columns[2]
+    col_generador = df.columns[3]
+    col_tecnologia = df.columns[5]
+    col_fecha = df.columns[17]
 
-    # Extraer el nombre del Dealer
     nombre_dealer = str(df[col_dealer].dropna().iloc[0]) if not df[col_dealer].dropna().empty else "Dealer Principal"
 
-    # Preparar registros para JSON
     df[col_fecha] = pd.to_datetime(df[col_fecha], errors='coerce').dt.date
     fecha_hoy = date.today()
     
     records = []
     for idx, row in df.iterrows():
-        # Limpieza de datos básicos
         cliente = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else "Sin Cliente"
         generador = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else "Sin Nombre"
         tech = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else "Desconocida"
@@ -65,486 +62,409 @@ def generar_dashboard():
             "dias_offline": dias_offline
         })
 
-    # Convertir a formato JSON seguro para inyectar en JS
     data_json = json.dumps(records, ensure_ascii=False)
-    
-    # Hora de actualización ajustada a Colombia (UTC-5)
     colombia_time = datetime.utcnow() - timedelta(hours=5)
     fecha_actualizacion = colombia_time.strftime("%d/%m/%Y a las %H:%M (Hora Col)")
 
-    # ---------------- PLANTILLA HTML MULTI-INTERACTIVA ----------------
+    # ---------------- PLANTILLA HTML (ÁRTIMO BRAND GUIDELINES) ----------------
     dashboard_html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Centro de Control - {nombre_dealer}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>{nombre_dealer} — Conectividad Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <style>
+        :root {{
+            /* Paleta ÁRTIMO */
+            --artimo-rojo-oscuro:   #BC1818;
+            --artimo-rojo-vivo:     #E10B17;
+            --artimo-rojo-medio:    #E42520;
+            --artimo-rojo-naranja:  #E63B1E;
+            --artimo-gris:          #5A5A59;
+            --artimo-negro:         #1A1A1A;
+            --artimo-blanco:        #FFFFFF;
+            --artimo-gris-claro:    #F2F2F2;
+        }}
+
+        body {{
+            font-family: 'Open Sans', Arial, sans-serif;
+            font-weight: 300;
+            background: #F4F5F7;
+            color: var(--artimo-negro);
+            margin: 0; padding: 0;
+        }}
+
+        /* Topbar Oficial */
+        .topbar {{
+            background: var(--artimo-negro);
+            color: var(--artimo-blanco);
+            height: 56px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }}
+        .topbar-brand {{ display: flex; align-items: center; gap: 12px; }}
+        .topbar-title {{ font-size: 18px; font-weight: 600; letter-spacing: 0.5px; margin: 0; }}
+        .topbar-sub {{ font-size: 11px; color: #9CA3AF; font-weight: 300; margin: 0; }}
+        
+        .filter-select {{
+            background: #2a2a2a; color: white; border: 1px solid #4B5563;
+            padding: 6px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans';
+            outline: none; cursor: pointer;
+        }}
+        .filter-select:focus {{ border-color: var(--artimo-rojo-oscuro); }}
+
+        .main-content {{
+            max-width: 1400px; margin: 0 auto; padding: 24px;
+        }}
+
+        /* Alertas Interactivas */
+        .alert-box {{
+            background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris);
+            padding: 12px 20px; border-radius: 8px; margin-bottom: 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }}
+        .alert-box p {{ margin: 0; font-size: 13px; font-weight: 600; }}
+        .active-tags {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
+        .tag {{
+            background: var(--artimo-gris-claro); color: var(--artimo-negro);
+            font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px;
+            border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px;
+        }}
+        .tag button {{ background: none; border: none; color: var(--artimo-rojo-oscuro); font-weight: bold; cursor: pointer; }}
+        .btn-clear {{
+            background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3);
+            font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer;
+        }}
+
+        /* KPI Cards Oficiales */
+        .kpi-grid {{
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }}
+        .kpi-card {{
+            background: var(--artimo-blanco); border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB;
+            display: flex; flex-direction: column; gap: 6px;
+        }}
+        .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
+        .kpi-label {{ font-size: 11px; color: var(--artimo-gris); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }}
+        .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; }}
+        .kpi-sub {{ font-size: 11px; color: var(--artimo-gris); font-weight: 300; }}
+        
+        .kpi-p1 .kpi-value {{ color: var(--artimo-rojo-oscuro); }}
+        .kpi-ok .kpi-value {{ color: #10B981; }}
+        .kpi-dark .kpi-value {{ color: var(--artimo-negro); }}
+
+        /* Contenedores Generales */
+        .card-grid {{
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px; margin-bottom: 24px;
+        }}
+        .card {{
+            background: var(--artimo-blanco); border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }}
+        .card:hover {{ transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.13); }}
+
+        /* Tablas de Datos Oficiales */
+        .table-section {{
+            background: var(--artimo-blanco); border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden;
+        }}
+        .table-header {{ padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; }}
+        .table-header h2 {{ margin: 0; font-size: 18px; font-weight: 700; }}
+        .search-input {{
+            padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px;
+            font-size: 13px; font-family: 'Open Sans'; outline: none; width: 250px;
+        }}
+        .search-input:focus {{ border-color: var(--artimo-rojo-oscuro); }}
+
+        .fc-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+        .fc-table th {{
+            background: #F9FAFB; padding: 12px 20px; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--artimo-gris); font-weight: 600; text-align: left;
+        }}
+        .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid #F3F4F6; font-weight: 300; }}
+        .fc-table tr:hover td {{ background: #FAFAFA; }}
+
+        /* Badges / Pills */
+        .badge-ok {{ background: rgba(16,185,129,0.2); color: #10B981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
+        .badge-p1 {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
+        .badge-p2 {{ background: rgba(245,158,11,0.12); color: #F59E0B; border: 1px solid rgba(245,158,11,0.3); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
+        .badge-mid {{ background: rgba(90,90,89,0.1); color: var(--artimo-gris); border: 1px solid rgba(90,90,89,0.2); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }}
+        
+        /* Modificadores Tipográficos */
+        .font-bold {{ font-weight: 700; color: var(--artimo-negro); }}
+        .text-sub {{ color: var(--artimo-gris); }}
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans min-h-screen pb-12">
+<body>
 
-    <header class="bg-slate-800 text-white shadow-md py-6 px-8 mb-6">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <img src="artimo_logo.jpg" alt="ÁRTIMO" style="height:28px" />
             <div>
-                <h1 class="text-2xl md:text-3xl font-bold tracking-tight">📊 Centro de Control - {nombre_dealer}</h1>
-                <p class="text-xs md:text-sm text-gray-400 mt-1">Actualizado automáticamente el: {fecha_actualizacion}</p>
-            </div>
-            <div class="flex items-center gap-2 bg-slate-700 p-2 rounded-lg">
-                <label for="client_select" class="text-sm font-semibold text-gray-300">Cliente:</label>
-                <select id="client_select" class="bg-slate-800 text-white rounded border border-slate-600 px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="filterByClient(this.value)">
-                    <option value="TODOS">-- TODOS LOS CLIENTES --</option>
-                </select>
+                <p class="topbar-title">{nombre_dealer} Dashboard</p>
+                <p class="topbar-sub">Ártimo Telematics · Actualizado: {fecha_actualizacion}</p>
             </div>
         </div>
-    </header>
+        <div class="topbar-right">
+            <select id="client_select" class="filter-select" onchange="filterByClient(this.value)">
+                <option value="TODOS">-- TODOS LOS CLIENTES --</option>
+            </select>
+        </div>
+    </div>
 
-    <div class="max-w-7xl mx-auto px-4 md:px-8">
-
-        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div class="main-content">
+        <div class="alert-box">
             <div>
-                <p class="text-sm text-blue-800 font-medium">💡 ¡Dashboard 100% Interactivo!</p>
-                <p class="text-xs text-blue-600 mt-0.5">Haz clic en las secciones o barras de cualquier gráfico para filtrar el resto del panel y la tabla de equipos.</p>
-            </div>
-            <div id="active_filters" class="flex flex-wrap gap-2 items-center">
+                <p>Filtros de Dashboard Interactivo</p>
+                <div id="active_filters" class="active-tags">
+                    <span class="text-sub" style="font-size:12px; font-weight:300;">Haz clic en las gráficas para filtrar la información.</span>
                 </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 text-center">
-                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Generadores</h3>
-                <p id="kpi_total" class="text-4xl font-extrabold text-slate-800 mt-2">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 text-center">
-                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">En línea (Operando)</h3>
-                <p id="kpi_online" class="text-4xl font-extrabold text-green-600 mt-2">0%</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 text-center">
-                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Fuera de Cobertura</h3>
-                <p id="kpi_offline" class="text-4xl font-extrabold text-red-600 mt-2">0</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <div id="chart_dona" class="w-full"></div>
+        <div class="kpi-grid">
+            <div class="kpi-card kpi-dark prio-4">
+                <div class="kpi-label">Total Generadores</div>
+                <div id="kpi_total" class="kpi-value">0</div>
+                <div class="kpi-sub">Unidades registradas</div>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <div id="chart_tech" class="w-full"></div>
+            <div class="kpi-card kpi-ok">
+                <div class="kpi-label">Conectividad Global</div>
+                <div id="kpi_online" class="kpi-value">0%</div>
+                <div class="kpi-sub">Operando correctamente</div>
             </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <div id="chart_gravity" class="w-full"></div>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <div id="chart_top_clients" class="w-full"></div>
+            <div class="kpi-card kpi-p1 prio-1">
+                <div class="kpi-label">Equipos Críticos</div>
+                <div id="kpi_offline" class="kpi-value">0</div>
+                <div class="kpi-sub">Unidades fuera de cobertura</div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-800">📋 Listado de Equipos bajo Filtro Activo</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Mostrando los registros que coinciden con los criterios de selección actuales.</p>
-                </div>
-                <div class="w-full sm:w-auto">
-                    <input type="text" id="table_search" placeholder="Buscar por generador..." oninput="onSearchTable(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
+        <div class="card-grid">
+            <div class="card"><div id="chart_dona" style="width:100%;"></div></div>
+            <div class="card"><div id="chart_tech" style="width:100%;"></div></div>
+            <div class="card"><div id="chart_gravity" style="width:100%;"></div></div>
+            <div class="card"><div id="chart_top_clients" style="width:100%;"></div></div>
+        </div>
+
+        <div class="table-section">
+            <div class="table-header">
+                <h2>Detalle de Equipos Críticos</h2>
+                <input type="text" id="table_search" class="search-input" placeholder="Buscar generador..." oninput="onSearchTable(this.value)">
             </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+            <div style="overflow-x: auto;">
+                <table class="fc-table">
                     <thead>
-                        <tr class="bg-gray-50 text-slate-700 text-xs font-bold uppercase tracking-wider border-b border-gray-200">
-                            <th class="px-6 py-4">Generador</th>
-                            <th class="px-6 py-4">Cliente</th>
-                            <th class="px-6 py-4">Tecnología</th>
-                            <th class="px-6 py-4 text-center">Estado</th>
-                            <th class="px-6 py-4">Última Conexión</th>
-                            <th class="px-6 py-4">Detalle Cobertura</th>
+                        <tr>
+                            <th>Generador</th>
+                            <th>Cliente</th>
+                            <th>Tecnología</th>
+                            <th>Estado</th>
+                            <th>Última Conexión</th>
+                            <th>Severidad</th>
                         </tr>
                     </thead>
-                    <tbody id="table_body" class="divide-y divide-gray-100 text-sm">
-                        </tbody>
+                    <tbody id="table_body"></tbody>
                 </table>
             </div>
-            <div id="no_data_message" class="hidden p-8 text-center text-gray-500 font-medium">
-                No se encontraron equipos bajo los criterios seleccionados.
+            <div id="no_data_message" style="display:none; padding: 40px; text-align: center; color: var(--artimo-gris); font-size: 14px;">
+                No se encontraron registros bajo los filtros actuales.
             </div>
         </div>
     </div>
 
     <script>
-        // Los datos JSON de Python inyectados
         const rawData = {data_json};
-
-        // Estado inicial de filtros
-        let currentFilters = {{
-            cliente: 'TODOS',
-            estado: null,
-            tecnologia: null,
-            gravedad: null
-        }};
-
+        let currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
         let searchTerm = '';
 
-        // Inicializar Dashboard
+        // Estilos de Plotly adaptados a ÁRTIMO
+        const plotlyLayoutBase = {{
+            font: {{ family: 'Open Sans, Arial, sans-serif', color: '#1A1A1A' }},
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+            margin: {{ t: 40, b: 30, l: 40, r: 20 }}, height: 280
+        }};
+
         window.addEventListener('DOMContentLoaded', () => {{
             populateClientDropdown();
             updateDashboard();
         }});
 
-        // Llenar el Dropdown de Clientes dinámicamente
         function populateClientDropdown() {{
             const select = document.getElementById('client_select');
             const uniqueClients = [...new Set(rawData.map(d => d.cliente))].sort();
-            uniqueClients.forEach(client => {{
+            uniqueClients.forEach(c => {{
                 const opt = document.createElement('option');
-                opt.value = client;
-                opt.textContent = client;
+                opt.value = opt.textContent = c;
                 select.appendChild(opt);
             }});
         }}
 
-        // Cambiar filtro por dropdown de cliente
-        function filterByClient(clientValue) {{
-            currentFilters.cliente = clientValue;
+        function filterByClient(val) {{ currentFilters.cliente = val; updateDashboard(); }}
+        function clearFilter(key) {{
+            if(key === 'cliente') document.getElementById('client_select').value = 'TODOS';
+            currentFilters[key] = (key === 'cliente') ? 'TODOS' : null;
             updateDashboard();
         }}
-
-        // Limpiar un filtro individual
-        function clearFilter(filterKey) {{
-            if (filterKey === 'cliente') {{
-                currentFilters.cliente = 'TODOS';
-                document.getElementById('client_select').value = 'TODOS';
-            }} else {{
-                currentFilters[filterKey] = null;
-            }}
-            updateDashboard();
-        }}
-
-        // Limpiar todos los filtros activos
         function clearAllFilters() {{
-            currentFilters.cliente = 'TODOS';
-            currentFilters.estado = null;
-            currentFilters.tecnologia = null;
-            currentFilters.gravedad = null;
+            currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
             document.getElementById('client_select').value = 'TODOS';
             updateDashboard();
         }}
+        function onSearchTable(val) {{ searchTerm = val.toLowerCase().trim(); renderTableOnly(); }}
 
-        // Buscar en la tabla en tiempo real
-        function onSearchTable(val) {{
-            searchTerm = val.toLowerCase().trim();
-            renderTableOnly();
-        }}
-
-        // Función Principal de Actualización del Dashboard
         function updateDashboard() {{
-            // 1. Filtrar los datos maestros
             const filteredData = rawData.filter(d => {{
-                const matchCliente = (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente);
-                const matchEstado = (!currentFilters.estado || d.estado === currentFilters.estado);
-                const matchTech = (!currentFilters.tecnologia || d.tecnologia === currentFilters.tecnologia);
-                const matchGrav = (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad);
-                return matchCliente && matchEstado && matchTech && matchGrav;
+                return (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente) &&
+                       (!currentFilters.estado || d.estado === currentFilters.estado) &&
+                       (!currentFilters.tecnologia || d.tecnologia === currentFilters.tecnologia) &&
+                       (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad);
             }});
 
-            // 2. Actualizar KPIs
             const total = filteredData.length;
             const online = filteredData.filter(d => d.estado === 'Operando').length;
-            const offline = total - online;
-            const percentage = total > 0 ? Math.round((online / total) * 100) : 0;
-
             document.getElementById('kpi_total').textContent = total;
-            document.getElementById('kpi_online').textContent = percentage + '%';
-            document.getElementById('kpi_offline').textContent = offline;
+            document.getElementById('kpi_online').textContent = total > 0 ? Math.round((online/total)*100) + '%' : '0%';
+            document.getElementById('kpi_offline').textContent = total - online;
 
-            // 3. Renderizar Filtros Activos (Tags)
             renderActiveFilterTags();
-
-            // 4. Renderizar Gráficas
             renderDonaChart(filteredData);
             renderTechChart(filteredData);
             renderGravityChart(filteredData);
             renderTopClientsChart(filteredData);
-
-            // 5. Renderizar Tabla
             renderTableOnly(filteredData);
         }}
 
-        // Renderizar tags de filtros aplicados
         function renderActiveFilterTags() {{
             const container = document.getElementById('active_filters');
             container.innerHTML = '';
+            let has = false;
+            
+            Object.keys(currentFilters).forEach(key => {{
+                if(currentFilters[key] && currentFilters[key] !== 'TODOS') {{
+                    has = true;
+                    container.innerHTML += `<div class="tag">${{key.toUpperCase()}}: ${{currentFilters[key]}} <button onclick="clearFilter('${{key}}')">×</button></div>`;
+                }}
+            }});
 
-            let hasFilters = false;
-
-            if (currentFilters.cliente !== 'TODOS') {{
-                createTag(container, `Cliente: ${{currentFilters.cliente}}`, 'cliente');
-                hasFilters = true;
-            }}
-            if (currentFilters.estado) {{
-                createTag(container, `Estado: ${{currentFilters.estado}}`, 'estado');
-                hasFilters = true;
-            }}
-            if (currentFilters.tecnologia) {{
-                createTag(container, `Tecnología: ${{currentFilters.tecnologia}}`, 'tecnologia');
-                hasFilters = true;
-            }}
-            if (currentFilters.gravedad) {{
-                createTag(container, `Gravedad: ${{currentFilters.gravedad}}`, 'gravedad');
-                hasFilters = true;
-            }}
-
-            if (hasFilters) {{
-                const clearBtn = document.createElement('button');
-                clearBtn.className = "bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold px-3 py-1 rounded-lg transition";
-                clearBtn.textContent = "Limpiar Filtros ❌";
-                clearBtn.onclick = clearAllFilters;
-                container.appendChild(clearBtn);
-            }} else {{
-                container.innerHTML = '<span class="text-xs text-blue-500 italic">Ningún gráfico seleccionado. Panel completo.</span>';
-            }}
+            if(has) container.innerHTML += `<button class="btn-clear" onclick="clearAllFilters()">Limpiar Filtros</button>`;
+            else container.innerHTML = `<span class="text-sub" style="font-size:12px; font-weight:300;">Haz clic en las gráficas para filtrar.</span>`;
         }}
 
-        function createTag(parent, text, filterKey) {{
-            const tag = document.createElement('span');
-            tag.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded flex items-center gap-1.5 border border-blue-200";
-            tag.innerHTML = `${{text}} <button class="text-blue-500 hover:text-blue-900 font-bold" onclick="clearFilter('${{filterKey}}')">×</button>`;
-            parent.appendChild(tag);
-        }}
-
-        // --- RENDERIZADO DE GRÁFICOS INTERACTIVOS ---
-
-        // 1. Gráfico de Dona: Conectividad General
         function renderDonaChart(data) {{
-            const operando = data.filter(d => d.estado === 'Operando').length;
-            const offline = data.filter(d => d.estado === 'Fuera de cobertura').length;
-
-            const plotData = [{{
-                values: [operando, offline],
-                labels: ['Operando', 'Fuera de cobertura'],
-                type: 'pie',
-                hole: 0.4,
-                marker: {{ colors: ['#10B981', '#EF4444'] }},
-                textinfo: 'value+percent'
-            }}];
-
-            const layout = {{
-                title: {{ text: '<b>Estado General de la Flota</b>', font: {{ size: 15 }} }},
-                margin: {{ t: 40, b: 20, l: 20, r: 20 }},
-                height: 280,
-                showlegend: true,
-                legend: {{ orientation: 'h', y: -0.1 }}
-            }};
-
-            Plotly.react('chart_dona', plotData, layout, {{ responsive: true, displayModeBar: false }});
-
-            // Acción al hacer click
-            document.getElementById('chart_dona').on('plotly_click', function(clickData) {{
-                const label = clickData.points[0].label;
-                currentFilters.estado = (currentFilters.estado === label) ? null : label;
-                updateDashboard();
-            }});
+            const op = data.filter(d => d.estado === 'Operando').length;
+            const off = data.filter(d => d.estado === 'Fuera de cobertura').length;
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Estado General</b>', font: {{size: 15}} }}, legend: {{ orientation: 'h', y: -0.1 }} }};
+            
+            Plotly.react('chart_dona', [{{
+                values: [op, off], labels: ['Operando', 'Fuera de cobertura'], type: 'pie', hole: 0.5,
+                marker: {{ colors: ['#10B981', '#BC1818'] }}, textinfo: 'value+percent'
+            }}], layout, {{ responsive: true, displayModeBar: false }});
+            
+            document.getElementById('chart_dona').on('plotly_click', d => {{ currentFilters.estado = (currentFilters.estado === d.points[0].label) ? null : d.points[0].label; updateDashboard(); }});
         }}
 
-        // 2. Gráfico de Barras: Tecnología
         function renderTechChart(data) {{
-            const techMap = {{}};
+            const map = {{}};
             data.forEach(d => {{
-                if (!techMap[d.tecnologia]) techMap[d.tecnologia] = {{ operando: 0, offline: 0 }};
-                if (d.estado === 'Operando') techMap[d.tecnologia].operando++;
-                else techMap[d.tecnologia].offline++;
+                if(!map[d.tecnologia]) map[d.tecnologia] = {{ op: 0, off: 0 }};
+                d.estado === 'Operando' ? map[d.tecnologia].op++ : map[d.tecnologia].off++;
             }});
-
-            const xKeys = Object.keys(techMap).sort();
-            const yOperando = xKeys.map(k => techMap[k].operando);
-            const yOffline = xKeys.map(k => techMap[k].offline);
-
-            const trace1 = {{
-                x: xKeys,
-                y: yOperando,
-                name: 'Operando',
-                type: 'bar',
-                marker: {{ color: '#10B981' }}
-            }};
-
-            const trace2 = {{
-                x: xKeys,
-                y: yOffline,
-                name: 'Fuera cobertura',
-                type: 'bar',
-                marker: {{ color: '#EF4444' }}
-            }};
-
-            const layout = {{
-                title: {{ text: '<b>Conectividad por Tecnología</b>', font: {{ size: 15 }} }},
-                barmode: 'group',
-                margin: {{ t: 40, b: 40, l: 40, r: 20 }},
-                height: 280,
-                legend: {{ orientation: 'h', y: -0.25 }}
-            }};
-
-            Plotly.react('chart_tech', [trace1, trace2], layout, {{ responsive: true, displayModeBar: false }});
-
-            document.getElementById('chart_tech').on('plotly_click', function(clickData) {{
-                const tech = clickData.points[0].x;
-                currentFilters.tecnologia = (currentFilters.tecnologia === tech) ? null : tech;
-                updateDashboard();
-            }});
+            const x = Object.keys(map).sort();
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Tecnología</b>', font: {{size: 15}} }}, barmode: 'group', legend: {{ orientation: 'h', y: -0.2 }} }};
+            
+            Plotly.react('chart_tech', [
+                {{ x: x, y: x.map(k=>map[k].op), name: 'Operando', type: 'bar', marker: {{ color: '#10B981' }} }},
+                {{ x: x, y: x.map(k=>map[k].off), name: 'Offline', type: 'bar', marker: {{ color: '#BC1818' }} }}
+            ], layout, {{ responsive: true, displayModeBar: false }});
+            
+            document.getElementById('chart_tech').on('plotly_click', d => {{ currentFilters.tecnologia = (currentFilters.tecnologia === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
         }}
 
-        // 3. Gráfico de Barras: Gravedad de Desconexión
         function renderGravityChart(data) {{
-            const gravData = data.filter(d => d.estado === 'Fuera de cobertura');
-            const counts = {{
-                "1 a 3 días": 0,
-                "4 a 7 días": 0,
-                "Más de 7 días": 0,
-                "Sin registro previo": 0
-            }};
-
-            gravData.forEach(d => {{
-                if (counts[d.gravedad] !== undefined) counts[d.gravedad]++;
-            }});
-
-            const xKeys = Object.keys(counts);
-            const yValues = xKeys.map(k => counts[k]);
-
-            const plotData = [{{
-                x: xKeys,
-                y: yValues,
-                type: 'bar',
-                marker: {{ color: ['#FDBA74', '#F97316', '#C2410C', '#9CA3AF'] }}
-            }}];
-
-            const layout = {{
-                title: {{ text: '<b>Gravedad de la Desconexión (Offline)</b>', font: {{ size: 15 }} }},
-                margin: {{ t: 40, b: 40, l: 40, r: 20 }},
-                height: 280
-            }};
-
-            Plotly.react('chart_gravity', plotData, layout, {{ responsive: true, displayModeBar: false }});
-
-            document.getElementById('chart_gravity').on('plotly_click', function(clickData) {{
-                const grav = clickData.points[0].x;
-                currentFilters.gravedad = (currentFilters.gravedad === grav) ? null : grav;
-                updateDashboard();
-            }});
+            const map = {{ "1 a 3 días": 0, "4 a 7 días": 0, "Más de 7 días": 0, "Sin registro previo": 0 }};
+            data.filter(d => d.estado !== 'Operando').forEach(d => {{ if(map[d.gravedad] !== undefined) map[d.gravedad]++; }});
+            const x = Object.keys(map);
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Gravedad (Offline)</b>', font: {{size: 15}} }} }};
+            
+            Plotly.react('chart_gravity', [{{
+                x: x, y: x.map(k=>map[k]), type: 'bar', marker: {{ color: ['#E63B1E', '#E42520', '#BC1818', '#5A5A59'] }}
+            }}], layout, {{ responsive: true, displayModeBar: false }});
+            
+            document.getElementById('chart_gravity').on('plotly_click', d => {{ currentFilters.gravedad = (currentFilters.gravedad === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
         }}
 
-        // 4. Gráfico: Top 10 Clientes Críticos (Reemplazo del gráfico complejo anterior)
         function renderTopClientsChart(data) {{
-            const offlineData = data.filter(d => d.estado === 'Fuera de cobertura');
-            const clientCounts = {{}};
-            offlineData.forEach(d => {{
-                clientCounts[d.cliente] = (clientCounts[d.cliente] || 0) + 1;
-            }});
-
-            // Ordenar clientes descendente y tomar top 10
-            const sortedClients = Object.entries(clientCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10)
-                .reverse(); // Reverso para que la barra más larga quede arriba en vertical/horizontal
-
-            const yClients = sortedClients.map(item => item[0]);
-            const xCounts = sortedClients.map(item => item[1]);
-
-            const plotData = [{{
-                y: yClients,
-                x: xCounts,
-                type: 'bar',
-                orientation: 'h',
-                marker: {{ color: '#EF4444' }}
-            }}];
-
-            const layout = {{
-                title: {{ text: '<b>Top 10 Clientes con más Equipos Offline</b>', font: {{ size: 15 }} }},
-                margin: {{ t: 40, b: 40, l: 150, r: 20 }},
-                height: 280,
-                xaxis: {{ dtick: 1 }}
-            }};
-
-            Plotly.react('chart_top_clients', plotData, layout, {{ responsive: true, displayModeBar: false }});
-
-            document.getElementById('chart_top_clients').on('plotly_click', function(clickData) {{
-                const clientName = clickData.points[0].y;
-                currentFilters.cliente = (currentFilters.cliente === clientName) ? 'TODOS' : clientName;
-                document.getElementById('client_select').value = currentFilters.cliente;
-                updateDashboard();
+            const map = {{}};
+            data.filter(d => d.estado !== 'Operando').forEach(d => map[d.cliente] = (map[d.cliente]||0) + 1);
+            const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Top 10 Clientes Críticos</b>', font: {{size: 15}} }}, margin: {{ t:40, b:30, l:120, r:20 }} }};
+            
+            Plotly.react('chart_top_clients', [{{
+                y: sorted.map(i=>i[0]), x: sorted.map(i=>i[1]), type: 'bar', orientation: 'h', marker: {{ color: '#BC1818' }}
+            }}], layout, {{ responsive: true, displayModeBar: false }});
+            
+            document.getElementById('chart_top_clients').on('plotly_click', d => {{
+                currentFilters.cliente = (currentFilters.cliente === d.points[0].y) ? 'TODOS' : d.points[0].y;
+                document.getElementById('client_select').value = currentFilters.cliente; updateDashboard();
             }});
         }}
 
-        // --- RENDERIZADO DE TABLA ---
         function renderTableOnly(dataToRender) {{
-            // Si no se pasa data, filtramos con el estado actual
-            const data = dataToRender || rawData.filter(d => {{
-                const matchCliente = (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente);
-                const matchEstado = (!currentFilters.estado || d.estado === currentFilters.estado);
-                const matchTech = (!currentFilters.tecnologia || d.tecnologia === currentFilters.tecnologia);
-                const matchGrav = (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad);
-                return matchCliente && matchEstado && matchTech && matchGrav;
-            }});
-
+            const data = dataToRender || rawData.filter(d => 
+                (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente) &&
+                (!currentFilters.estado || d.estado === currentFilters.estado) &&
+                (!currentFilters.tecnologia || d.tecnologia === currentFilters.tecnologia) &&
+                (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad)
+            );
+            
             const tbody = document.getElementById('table_body');
             const msg = document.getElementById('no_data_message');
             tbody.innerHTML = '';
-
-            // Filtrar localmente con el término de búsqueda
             const finalData = data.filter(d => d.generador.toLowerCase().includes(searchTerm));
+            
+            if(finalData.length === 0) {{ msg.style.display = 'block'; return; }}
+            msg.style.display = 'none';
 
-            if (finalData.length === 0) {{
-                msg.classList.remove('hidden');
-                return;
-            }} else {{
-                msg.classList.add('hidden');
-            }}
-
-            finalData.forEach(row => {{
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
-
-                // Badge de Estado
-                const statusBadge = row.estado === 'Operando' 
-                    ? '<span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-green-200">Operando</span>'
-                    : '<span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-red-200">Offline</span>';
-
-                // Badge de gravedad
-                let gravBadge = '';
-                if (row.estado === 'Operando') {{
-                    gravBadge = '<span class="text-green-600 font-medium">Estable</span>';
-                }} else {{
-                    const colors = {{
-                        "1 a 3 días": "text-amber-600 bg-amber-50 px-2 py-0.5 rounded font-medium",
-                        "4 a 7 días": "text-orange-600 bg-orange-50 px-2 py-0.5 rounded font-medium",
-                        "Más de 7 días": "text-red-700 bg-red-50 px-2 py-0.5 rounded font-bold",
-                        "Sin registro previo": "text-gray-500 bg-gray-50 px-2 py-0.5 rounded"
-                    }};
-                    gravBadge = `<span class="${{colors[row.gravedad] || 'text-gray-500'}}">${{row.gravedad}}</span>`;
+            finalData.forEach(r => {{
+                const statusBadge = r.estado === 'Operando' ? '<span class="badge-ok">Operando</span>' : '<span class="badge-p1">Offline</span>';
+                let gravBadge = '<span class="badge-ok">Estable</span>';
+                if(r.estado !== 'Operando') {{
+                    if(r.gravedad === '1 a 3 días') gravBadge = '<span class="badge-p2">1 a 3 días</span>';
+                    else if(r.gravedad === 'Más de 7 días') gravBadge = '<span class="badge-p1">Más de 7 días</span>';
+                    else gravBadge = `<span class="badge-mid">${{r.gravedad}}</span>`;
                 }}
-
-                tr.innerHTML = `
-                    <td class="px-6 py-4 font-bold text-slate-800">${{row.generador}}</td>
-                    <td class="px-6 py-4 text-slate-600 font-medium">${{row.cliente}}</td>
-                    <td class="px-6 py-4 text-gray-500">${{row.tecnologia}}</td>
-                    <td class="px-6 py-4 text-center">${{statusBadge}}</td>
-                    <td class="px-6 py-4 text-gray-500">${{row.fecha}}</td>
-                    <td class="px-6 py-4 text-xs">${{gravBadge}}</td>
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="font-bold">${{r.generador}}</td>
+                        <td class="text-sub">${{r.cliente}}</td>
+                        <td class="text-sub">${{r.tecnologia}}</td>
+                        <td>${{statusBadge}}</td>
+                        <td class="text-sub">${{r.fecha}}</td>
+                        <td>${{gravBadge}}</td>
+                    </tr>
                 `;
-                tbody.appendChild(tr);
             }});
         }}
     </script>
 </body>
 </html>"""
 
-    # Inyectar el JSON y guardar el archivo final
     html_final = dashboard_html.replace('{data_json}', data_json)
-    
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-        
-    print("¡Proceso completado! Nuevo Dashboard Interactivo generado.")
+    print("Dashboard corporativo ÁRTIMO generado exitosamente.")
 
 if __name__ == "__main__":
     generar_dashboard()
