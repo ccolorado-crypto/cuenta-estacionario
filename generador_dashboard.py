@@ -3,6 +3,16 @@ import json
 from datetime import date, datetime, timedelta
 import sys
 
+def safe_float(val):
+    """Convierte de forma segura los valores de coordenadas a decimales."""
+    try:
+        if pd.isna(val):
+            return None
+        # Convertimos a string, cambiamos coma por punto y convertimos a float
+        return float(str(val).strip().replace(',', '.'))
+    except ValueError:
+        return None
+
 def generar_dashboard():
     print("Iniciando procesamiento de datos...")
     
@@ -12,12 +22,8 @@ def generar_dashboard():
         print(f"Error crítico al leer el archivo: {e}")
         sys.exit(1)
 
-    # MAPEO DE COLUMNAS (A=0, B=1, C=2, D=3, F=5, G=6, R=17)
+    # MAPEO DE COLUMNAS (A=0, B=1, C=2, D=3, F=5, G=6, M=12, N=13, R=17)
     col_dealer = df.columns[1]
-    col_cliente = df.columns[2]
-    col_generador = df.columns[3]
-    col_tecnologia = df.columns[5]
-    col_modelo = df.columns[6]      
     col_fecha = df.columns[17]
 
     nombre_dealer_principal = str(df[col_dealer].dropna().iloc[0]) if not df[col_dealer].dropna().empty else "Dealer Principal"
@@ -57,7 +63,7 @@ def generar_dashboard():
         tech_raw = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else "Desconocida"
         tech_clean = tech_raw.lower()
         
-        # 1. IGNORAR FILAS CON ARTIMO O PROLUB EN TECNOLOGIA (Aplica globalmente)
+        # 1. IGNORAR FILAS CON ARTIMO O PROLUB EN TECNOLOGIA
         if "artimo" in tech_clean or "prolub" in tech_clean:
             continue
 
@@ -67,6 +73,10 @@ def generar_dashboard():
         modelo_raw = str(row.iloc[6]).strip() if pd.notna(row.iloc[6]) else "Sin Modelo"
         modelo_clean = modelo_raw.lower()
         
+        # Coordenadas
+        lat = safe_float(row.iloc[12])
+        lon = safe_float(row.iloc[13])
+
         raw_fecha = row.iloc[17]
         fecha_str = "Sin registro"
         status = "Fuera de cobertura"
@@ -93,9 +103,9 @@ def generar_dashboard():
             plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a tecnología COMAP AMF5."
         elif status == "Fuera de cobertura":
             if modelo_clean in rule3_list:
-                plan_accion = "🛠️ Se recomienda ir al sitio y validar dispositivo, accesorios, señal GPRS, añadir cable extensor para antena GSM. Actualizar FW si es necesario."
+                plan_accion = "🛠️ Se recomienda ir al sitio y validar dispositivo, señal GPRS, añadir cable extensor."
             elif modelo_clean in rule4_list:
-                plan_accion = "🔍 Se recomienda validar qué modelo de ComAp está instalado. Si es 2G debe reemplazarse por ComAp AMF5."
+                plan_accion = "🔍 Validar qué modelo de ComAp está instalado. Si es 2G debe reemplazarse."
             else:
                 if dias_offline <= 3:
                     plan_accion = "⚡ Intento de reinicio remoto. Verificar cortes de energía o saldo SIM."
@@ -116,7 +126,9 @@ def generar_dashboard():
             "estado": status,
             "gravedad": gravity,
             "dias_offline": dias_offline,
-            "plan_accion": plan_accion
+            "plan_accion": plan_accion,
+            "lat": lat,
+            "lon": lon
         })
 
     data_json = json.dumps(records, ensure_ascii=False)
@@ -183,6 +195,7 @@ def generar_dashboard():
 
         .card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 24px; }}
         .card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; }}
+        .map-card {{ grid-column: 1 / -1; padding: 15px; }}
 
         .table-section {{ background: var(--artimo-blanco); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden; }}
         .table-header {{ padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
@@ -206,7 +219,7 @@ def generar_dashboard():
         <div class="topbar-brand">
             <img src="artimo_logo.jpg" onerror="this.src='https://via.placeholder.com/120x40/BC1818/FFFFFF?text=ARTIMO';" alt="Logo"/>
             <div class="topbar-title-container">
-                <p class="topbar-title">Panel de Conectividad</p>
+                <p class="topbar-title">Panel de Conectividad Geográfico</p>
                 <p class="topbar-sub">Actualizado: {fecha_actualizacion}</p>
             </div>
         </div>
@@ -259,6 +272,8 @@ def generar_dashboard():
         </div>
 
         <div class="card-grid">
+            <div class="card map-card"><div id="chart_map" style="width:100%; height:450px;"></div></div>
+            
             <div class="card"><div id="chart_dona" style="width:100%;"></div></div>
             <div class="card"><div id="chart_tech" style="width:100%;"></div></div>
             <div class="card"><div id="chart_gravity" style="width:100%;"></div></div>
@@ -319,11 +334,9 @@ def generar_dashboard():
             const dealerSelect = document.getElementById('dealer_select');
             const clientSelect = document.getElementById('client_select');
             
-            // Limpiar opciones previas
             dealerSelect.innerHTML = '<option value="TODOS">-- TODOS LOS DEALERS --</option>';
             clientSelect.innerHTML = '<option value="TODOS">-- TODOS LOS CLIENTES --</option>';
 
-            // Llenar Dealers
             const uniqueDealers = [...new Set(rawData.map(d => d.dealer))].sort();
             uniqueDealers.forEach(d => {{
                 const opt = document.createElement('option');
@@ -332,7 +345,6 @@ def generar_dashboard():
                 dealerSelect.appendChild(opt);
             }});
 
-            // Llenar Clientes (Lógica de Cascada)
             let clientsData = rawData;
             if(currentFilters.dealer !== 'TODOS') {{
                 clientsData = rawData.filter(d => d.dealer === currentFilters.dealer);
@@ -404,6 +416,7 @@ def generar_dashboard():
             document.getElementById('kpi_lost_days').textContent = lostDays.toLocaleString();
 
             renderActiveFilterTags();
+            renderMapChart(filteredData);
             renderDonaChart(filteredData);
             renderTechChart(filteredData);
             renderGravityChart(filteredData);
@@ -424,6 +437,51 @@ def generar_dashboard():
             }});
             if(has) container.innerHTML += `<button class="btn-clear" onclick="clearAllFilters()">Limpiar Filtros</button>`;
             else container.innerHTML = `<span class="text-sub">Haz clic en las gráficas o usa los menús superiores para filtrar.</span>`;
+        }}
+
+        function renderMapChart(data) {{
+            const validData = data.filter(d => d.lat !== null && d.lon !== null);
+            
+            const colorMap = {{
+                'Conectado': '#10B981',
+                '1 a 3 días': '#F59E0B',
+                '4 a 7 días': '#E84C22',
+                'Más de 7 días': '#BC1818',
+                'Sin registro previo': '#5A5A59'
+            }};
+
+            const traces = [];
+            const groups = [...new Set(validData.map(d => d.gravedad))];
+
+            groups.forEach(g => {{
+                const groupData = validData.filter(d => d.gravedad === g);
+                traces.push({{
+                    type: 'scattermapbox',
+                    lat: groupData.map(d => d.lat),
+                    lon: groupData.map(d => d.lon),
+                    mode: 'markers',
+                    marker: {{ size: 10, color: colorMap[g] || '#5A5A59' }},
+                    name: g,
+                    text: groupData.map(d => `<b>${{d.generador}}</b><br>Cliente: ${{d.cliente}}<br>Estado: ${{d.estado}}<br><i>${{d.plan_accion}}</i>`),
+                    hoverinfo: 'text'
+                }});
+            }});
+
+            const layout = {{
+                ...plotlyLayoutBase,
+                height: 450,
+                title: {{ text: '<b>Ubicación Geográfica de Equipos</b>', font: {{size: 16}}, x: 0.5 }},
+                mapbox: {{ 
+                    style: 'open-street-map', 
+                    center: {{lat: 4.5709, lon: -74.2973}}, // Coordenadas centrales aprox. de Colombia
+                    zoom: 4.5 
+                }},
+                showlegend: true,
+                legend: {{ orientation: 'h', y: -0.1 }},
+                margin: {{ t: 50, b: 20, l: 10, r: 10 }}
+            }};
+
+            Plotly.react('chart_map', traces, layout, {{ responsive: true, displayModeBar: false }});
         }}
 
         function renderDonaChart(data) {{
@@ -533,11 +591,13 @@ def generar_dashboard():
             const dataToExport = getFilteredData().filter(d => d.generador.toLowerCase().includes(searchTerm));
             if (dataToExport.length === 0) return alert("No hay datos para exportar.");
 
-            const headers = ["Dealer", "Generador", "Cliente", "Tecnologia", "Modelo_Script", "Estado", "Ultima_Conexion", "Severidad", "Dias_Desconectado", "Plan_de_Accion"];
+            const headers = ["Dealer", "Generador", "Cliente", "Tecnologia", "Modelo_Script", "Estado", "Ultima_Conexion", "Severidad", "Dias_Desconectado", "Latitud", "Longitud", "Plan_de_Accion"];
             const csvRows = [headers.join(',')];
 
             dataToExport.forEach(r => {{
-                const values = [ `"${{r.dealer}}"`, `"${{r.generador}}"`, `"${{r.cliente}}"`, `"${{r.tecnologia}}"`, `"${{r.modelo}}"`, `"${{r.estado}}"`, `"${{r.fecha}}"`, `"${{r.gravedad}}"`, r.dias_offline, `"${{r.plan_accion}}"` ];
+                const latStr = r.lat !== null ? r.lat : '';
+                const lonStr = r.lon !== null ? r.lon : '';
+                const values = [ `"${{r.dealer}}"`, `"${{r.generador}}"`, `"${{r.cliente}}"`, `"${{r.tecnologia}}"`, `"${{r.modelo}}"`, `"${{r.estado}}"`, `"${{r.fecha}}"`, `"${{r.gravedad}}"`, r.dias_offline, latStr, lonStr, `"${{r.plan_accion}}"` ];
                 csvRows.push(values.join(','));
             }});
 
@@ -569,7 +629,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard actualizado correctamente con filtros de Dealer, exclusión de tecnología global y Top Clientes.")
+    print("Dashboard actualizado: Mapa Geográfico de Equipos incluido con éxito.")
 
 if __name__ == "__main__":
     generar_dashboard()
