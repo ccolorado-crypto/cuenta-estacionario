@@ -104,7 +104,7 @@
             <img src="artimo_logo.jpg" onerror="this.src='https://via.placeholder.com/120x40/BC1818/FFFFFF?text=ARTIMO';" alt="Logo"/>
             <div>
                 <p class="topbar-title">NOC - Panel Operativo de Telemetría</p>
-                <p class="topbar-sub">Actualizado: 15/07/2026 a las 14:46 (Hora Col)</p>
+                <p class="topbar-sub">Actualizado: 15/07/2026 a las 15:36 (Hora Col)</p>
             </div>
         </div>
         <div class="topbar-right">
@@ -205,10 +205,9 @@
         let currentFilters = { dealer: 'TODOS', cliente: 'TODOS', modelo: null, estado: null, tecnologia: null, gravedad: null };
         let searchTerm = '';
 
-        // Función para cambiar modo oscuro/claro y repintar gráficas
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
-            updateDashboard(); // Redibujar para que Plotly tome el nuevo color de texto
+            updateDashboard(); 
         }
 
         function getLayoutBase() {
@@ -221,7 +220,6 @@
             };
         }
 
-        // Función para truncar etiquetas muy largas en el eje Y
         function truncateLabel(str, maxLen = 22) {
             if (!str) return '';
             return str.length > maxLen ? str.substring(0, maxLen - 2) + '..' : str;
@@ -359,7 +357,7 @@
                     mode: 'markers',
                     marker: { size: 10, color: colorMap[g] || '#5A5A59' },
                     name: g,
-                    customdata: groupData.map(d => d.generador), // Guardamos nombre del generador real para el click
+                    customdata: groupData.map(d => d.generador), 
                     text: groupData.map(d => `<b>${d.generador}</b><br>Cliente: ${d.cliente}<br><i>Clic para filtrar tabla</i>`),
                     hoverinfo: 'text'
                 });
@@ -375,7 +373,6 @@
 
             Plotly.react('chart_map', traces, layout, { responsive: true, displayModeBar: false });
             
-            // Evento de clic en el mapa para buscar en la tabla
             document.getElementById('chart_map').removeAllListeners('plotly_click');
             document.getElementById('chart_map').on('plotly_click', d => {
                 const clickedGen = d.points[0].customdata;
@@ -425,19 +422,20 @@
             const layout = { 
                 ...getLayoutBase(), 
                 title: { text: '<b>Top Dealers (Offline)</b>', font: {size: 15}, x: 0.5 }, 
-                margin: { t:40, b:30, l:170, r:20 } // Margen L ampliado para textos largos
+                margin: { t:40, b:30, l:170, r:20 }
             };
             
             Plotly.react('chart_top_dealers', [{ 
                 y: sorted.map(i=>truncateLabel(i[0], 25)), 
                 x: sorted.map(i=>i[1]), 
                 type: 'bar', orientation: 'h', marker: { color: '#BC1818' },
-                text: sorted.map(i=>i[0]), hoverinfo: 'x+text' // Hover muestra nombre completo
+                text: sorted.map(i=>i[0]), 
+                textposition: 'none', // Esta es la línea que oculta el texto sobre la barra
+                hoverinfo: 'text+x' 
             }], layout, { responsive: true, displayModeBar: false });
             
             document.getElementById('chart_top_dealers').removeAllListeners('plotly_click');
             document.getElementById('chart_top_dealers').on('plotly_click', d => {
-                // Recuperamos el nombre real del dealer desde 'text'
                 filterByDropdown('dealer', (currentFilters.dealer === d.points[0].text) ? 'TODOS' : d.points[0].text);
             });
         }
@@ -450,14 +448,16 @@
             const layout = { 
                 ...getLayoutBase(), 
                 title: { text: '<b>Top Clientes (Offline)</b>', font: {size: 15}, x: 0.5 }, 
-                margin: { t:40, b:30, l:170, r:20 } // Margen L ampliado
+                margin: { t:40, b:30, l:170, r:20 } 
             };
             
             Plotly.react('chart_top_clients', [{ 
                 y: sorted.map(i=>truncateLabel(i[0], 25)), 
                 x: sorted.map(i=>i[1]), 
                 type: 'bar', orientation: 'h', marker: { color: '#E84C22' },
-                text: sorted.map(i=>i[0]), hoverinfo: 'x+text'
+                text: sorted.map(i=>i[0]), 
+                textposition: 'none', // Oculta el texto sobre la barra
+                hoverinfo: 'text+x'
             }], layout, { responsive: true, displayModeBar: false });
             
             document.getElementById('chart_top_clients').removeAllListeners('plotly_click');
@@ -474,14 +474,16 @@
             const layout = { 
                 ...getLayoutBase(), 
                 title: { text: '<b>Top Modelos/Scripts (Offline)</b>', font: {size: 15}, x: 0.5 }, 
-                margin: { t:40, b:30, l:170, r:20 } // Margen L ampliado
+                margin: { t:40, b:30, l:170, r:20 } 
             };
             
             Plotly.react('chart_top_models', [{ 
                 y: sorted.map(i=>truncateLabel(i[0], 25)), 
                 x: sorted.map(i=>i[1]), 
                 type: 'bar', orientation: 'h', marker: { color: '#F59E0B' },
-                text: sorted.map(i=>i[0]), hoverinfo: 'x+text'
+                text: sorted.map(i=>i[0]), 
+                textposition: 'none', // Oculta el texto sobre la barra
+                hoverinfo: 'text+x'
             }], layout, { responsive: true, displayModeBar: false });
             
             document.getElementById('chart_top_models').removeAllListeners('plotly_click');
