@@ -8,7 +8,6 @@ def safe_float(val):
     try:
         if pd.isna(val):
             return None
-        # Convertimos a string, cambiamos coma por punto y convertimos a float
         return float(str(val).strip().replace(',', '.'))
     except ValueError:
         return None
@@ -22,16 +21,13 @@ def generar_dashboard():
         print(f"Error crítico al leer el archivo: {e}")
         sys.exit(1)
 
-    # MAPEO DE COLUMNAS (A=0, B=1, C=2, D=3, F=5, G=6, M=12, N=13, R=17)
     col_dealer = df.columns[1]
     col_fecha = df.columns[17]
 
     nombre_dealer_principal = str(df[col_dealer].dropna().iloc[0]) if not df[col_dealer].dropna().empty else "Dealer Principal"
 
-    # Convertir a fechas reales
     df[col_fecha] = pd.to_datetime(df[col_fecha], errors='coerce').dt.date
     
-    # LÓGICA DE FECHA DINÁMICA SEGURA
     fecha_hoy_real = date.today()
     fechas_validas = df[col_fecha].dropna()
     fechas_validas = fechas_validas[fechas_validas <= fecha_hoy_real]
@@ -45,7 +41,6 @@ def generar_dashboard():
 
     records = []
     
-    # Listas de modelos para validación rápida
     rule3_list = [
         "amf-25|trifasico", "amf-5|trifasico", "amf-9|trifasico", "camkit-1|análogo",
         "camkit-1|carterpillaremcp-4.2", "camkit-1|clinicamarlygen-01",
@@ -63,7 +58,6 @@ def generar_dashboard():
         tech_raw = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else "Desconocida"
         tech_clean = tech_raw.lower()
         
-        # 1. IGNORAR FILAS CON ARTIMO O PROLUB EN TECNOLOGIA
         if "artimo" in tech_clean or "prolub" in tech_clean:
             continue
 
@@ -73,7 +67,6 @@ def generar_dashboard():
         modelo_raw = str(row.iloc[6]).strip() if pd.notna(row.iloc[6]) else "Sin Modelo"
         modelo_clean = modelo_raw.lower()
         
-        # Coordenadas
         lat = safe_float(row.iloc[12])
         lon = safe_float(row.iloc[13])
 
@@ -98,14 +91,14 @@ def generar_dashboard():
                 else: gravity = "Más de 7 días"
 
         if modelo_clean in ["exemys digital", "exemysdigital"]:
-            plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a tecnología CAMKIT2."
+            plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a CAMKIT2."
         elif "exemys analoga" in modelo_clean or "exemys análoga" in modelo_clean:
-            plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a tecnología COMAP AMF5."
+            plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a COMAP AMF5."
         elif status == "Fuera de cobertura":
             if modelo_clean in rule3_list:
-                plan_accion = "🛠️ Se recomienda ir al sitio y validar dispositivo, señal GPRS, añadir cable extensor."
+                plan_accion = "🛠️ Validar dispositivo, señal GPRS, añadir cable extensor."
             elif modelo_clean in rule4_list:
-                plan_accion = "🔍 Validar qué modelo de ComAp está instalado. Si es 2G debe reemplazarse."
+                plan_accion = "🔍 Validar modelo ComAp instalado. Si es 2G debe reemplazarse."
             else:
                 if dias_offline <= 3:
                     plan_accion = "⚡ Intento de reinicio remoto. Verificar cortes de energía o saldo SIM."
@@ -140,7 +133,7 @@ def generar_dashboard():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{nombre_dealer_principal} — Dashboard ÁRTIMO</title>
+    <title>{nombre_dealer_principal} — Dashboard NOC ÁRTIMO</title>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -150,80 +143,102 @@ def generar_dashboard():
             --artimo-rojo-vivo:     #E10B17;
             --artimo-naranja:       #E84C22;
             --artimo-amarillo:      #F59E0B;
-            --artimo-gris:          #5A5A59;
-            --artimo-negro:         #1A1A1A;
-            --artimo-blanco:        #FFFFFF;
-            --artimo-gris-claro:    #F2F2F2;
+            --artimo-verde:         #10B981;
+            
+            /* Variables Light Mode */
+            --bg-color: #F4F5F7;
+            --card-bg: #FFFFFF;
+            --text-main: #1A1A1A;
+            --text-sub: #5A5A59;
+            --border-color: #E5E7EB;
+            --table-header: #F9FAFB;
+            --table-hover: #FAFAFA;
+            --tag-bg: #F2F2F2;
+            --alert-bg: rgba(90,90,89,0.1);
         }}
 
-        body {{ font-family: 'Open Sans', Arial, sans-serif; font-weight: 400; background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
+        body.dark-mode {{
+            /* Variables Dark Mode */
+            --bg-color: #121212;
+            --card-bg: #1E1E1E;
+            --text-main: #E0E0E0;
+            --text-sub: #9CA3AF;
+            --border-color: #333333;
+            --table-header: #2A2A2A;
+            --table-hover: #2D2D2D;
+            --tag-bg: #333333;
+            --alert-bg: rgba(255,255,255,0.05);
+        }}
+
+        body {{ font-family: 'Open Sans', Arial, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 0; transition: background 0.3s, color 0.3s; }}
         
-        .topbar {{ background: var(--artimo-negro); color: var(--artimo-blanco); min-height: 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); gap: 15px; }}
+        .topbar {{ background: #111; color: #FFF; min-height: 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.5); gap: 15px; }}
         .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px; }}
         .topbar-brand img {{ height: 48px; width: auto; object-fit: contain; }}
-        .topbar-title-container {{ flex: 1; min-width: 0; }}
-        .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-        .topbar-sub {{ font-size: 12px; color: #D1D5DB; margin: 0; margin-top: 2px; }}
+        .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; }}
+        .topbar-sub {{ font-size: 12px; color: #9CA3AF; margin: 0; margin-top: 2px; }}
         
         .topbar-right {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
         .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 200px; }}
         
-        .btn-action {{ padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; }}
+        .btn-action {{ padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; color: #fff; }}
         .btn-action:hover {{ opacity: 0.85; }}
-        .btn-pdf {{ background: var(--artimo-rojo-oscuro); color: white; }}
-        .btn-csv {{ background: #10B981; color: white; }}
-        .btn-quick-wins {{ background: var(--artimo-rojo-vivo); color: white; font-size: 13px; padding: 10px 18px; }}
+        .btn-dark {{ background: #4B5563; }}
+        .btn-pdf {{ background: var(--artimo-rojo-oscuro); }}
+        .btn-csv {{ background: var(--artimo-verde); }}
+        .btn-quick-wins {{ background: var(--artimo-rojo-vivo); font-size: 13px; padding: 10px 18px; }}
 
         .main-content {{ max-width: 1400px; margin: 0 auto; padding: 24px; }}
-        .alert-box {{ background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris); padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
+        .alert-box {{ background: var(--alert-bg); border-left: 4px solid var(--text-sub); padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; transition: background 0.3s; }}
         .alert-box-info p {{ margin: 0; font-size: 13px; font-weight: 600; }}
         .active-tags {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
-        .tag {{ background: var(--artimo-gris-claro); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px; text-transform: uppercase; }}
+        .tag {{ background: var(--tag-bg); color: var(--text-main); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 6px; text-transform: uppercase; }}
         .tag button {{ background: none; border: none; color: var(--artimo-rojo-oscuro); font-weight: bold; cursor: pointer; }}
         .btn-clear {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer; }}
 
         .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }}
-        .kpi-card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; display: flex; flex-direction: column; gap: 6px; }}
+        .kpi-card {{ background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px; transition: background 0.3s, border 0.3s; }}
         .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
         .kpi-card.prio-2 {{ border-top: 3px solid var(--artimo-rojo-vivo); }}
-        .kpi-label {{ font-size: 12px; color: var(--artimo-gris); text-transform: uppercase; font-weight: 600; }}
-        .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; }}
-        .kpi-sub {{ font-size: 12px; color: var(--artimo-gris); }}
+        .kpi-label {{ font-size: 12px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; }}
+        .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; color: var(--text-main); }}
+        .kpi-sub {{ font-size: 12px; color: var(--text-sub); }}
         .kpi-p1 .kpi-value {{ color: var(--artimo-rojo-oscuro); }}
         .kpi-p2 .kpi-value {{ color: var(--artimo-rojo-vivo); }}
-        .kpi-ok .kpi-value {{ color: #10B981; }}
+        .kpi-ok .kpi-value {{ color: var(--artimo-verde); }}
 
-        .card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 24px; }}
-        .card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; }}
+        .card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 24px; }}
+        .card {{ background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid var(--border-color); transition: background 0.3s, border 0.3s; }}
         .map-card {{ grid-column: 1 / -1; padding: 15px; }}
 
-        .table-section {{ background: var(--artimo-blanco); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden; }}
-        .table-header {{ padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
-        .search-input {{ padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px; font-size: 13px; width: 250px; }}
+        .table-section {{ background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid var(--border-color); overflow: hidden; transition: background 0.3s, border 0.3s; }}
+        .table-header {{ padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
+        .search-input {{ padding: 8px 12px; border: 1.5px solid var(--border-color); border-radius: 8px; font-size: 13px; width: 250px; background: transparent; color: var(--text-main); }}
 
         .fc-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-        .fc-table th {{ background: #F9FAFB; padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: var(--artimo-gris); text-align: left; }}
-        .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid #F3F4F6; }}
-        .fc-table tr:hover td {{ background: #FAFAFA; }}
+        .fc-table th {{ background: var(--table-header); padding: 12px 20px; font-size: 11px; text-transform: uppercase; color: var(--text-sub); text-align: left; }}
+        .fc-table td {{ padding: 12px 20px; border-bottom: 1px solid var(--border-color); }}
+        .fc-table tr:hover td {{ background: var(--table-hover); }}
 
-        .badge-ok {{ background: rgba(16,185,129,0.2); color: #10B981; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
+        .badge-ok {{ background: rgba(16,185,129,0.2); color: var(--artimo-verde); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
         .badge-p1 {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
-        .badge-p2 {{ background: rgba(245,158,11,0.12); color: #F59E0B; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
-        .badge-mid {{ background: rgba(90,90,89,0.1); color: var(--artimo-gris); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
-        .font-bold {{ font-weight: 700; color: var(--artimo-negro); }}
-        .text-sub {{ color: var(--artimo-gris); font-size: 12px; }}
+        .badge-p2 {{ background: rgba(245,158,11,0.12); color: var(--artimo-amarillo); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
+        .badge-mid {{ background: rgba(90,90,89,0.15); color: var(--text-main); padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }}
+        .font-bold {{ font-weight: 700; color: var(--text-main); }}
+        .text-sub {{ color: var(--text-sub); font-size: 12px; }}
     </style>
 </head>
 <body>
     <div class="topbar">
         <div class="topbar-brand">
             <img src="artimo_logo.jpg" onerror="this.src='https://via.placeholder.com/120x40/BC1818/FFFFFF?text=ARTIMO';" alt="Logo"/>
-            <div class="topbar-title-container">
-                <p class="topbar-title">Panel de Conectividad Geográfico</p>
+            <div>
+                <p class="topbar-title">NOC - Panel Operativo de Telemetría</p>
                 <p class="topbar-sub">Actualizado: {fecha_actualizacion}</p>
             </div>
         </div>
         <div class="topbar-right">
+            <button onclick="toggleDarkMode()" class="btn-action btn-dark">🌙 Tema</button>
             <select id="dealer_select" class="filter-select" onchange="filterByDropdown('dealer', this.value)">
                 <option value="TODOS">-- TODOS LOS DEALERS --</option>
             </select>
@@ -240,7 +255,7 @@ def generar_dashboard():
             <div class="alert-box-info">
                 <p>Filtros Activos</p>
                 <div id="active_filters" class="active-tags">
-                    <span class="text-sub">Haz clic en las gráficas o usa los menús superiores para filtrar.</span>
+                    <span class="text-sub">Usa los menús superiores o haz clic en gráficas y mapa para filtrar.</span>
                 </div>
             </div>
             <div>
@@ -267,7 +282,7 @@ def generar_dashboard():
             <div class="kpi-card kpi-p2 prio-2">
                 <div class="kpi-label">Días Totales Perdidos</div>
                 <div id="kpi_lost_days" class="kpi-value">0</div>
-                <div class="kpi-sub">Suma de días offline</div>
+                <div class="kpi-sub">Acumulado días offline</div>
             </div>
         </div>
 
@@ -279,16 +294,17 @@ def generar_dashboard():
             <div class="card"><div id="chart_gravity" style="width:100%;"></div></div>
             <div class="card"><div id="chart_top_dealers" style="width:100%;"></div></div>
             <div class="card"><div id="chart_top_clients" style="width:100%;"></div></div>
+            <div class="card"><div id="chart_top_models" style="width:100%;"></div></div>
         </div>
 
         <div class="table-section">
             <div class="table-header">
                 <div>
-                    <h2 id="table_title">Detalle de Equipos</h2>
-                    <span class="text-sub">Mostrando resultados según filtros seleccionados.</span>
+                    <h2 id="table_title" style="margin:0;font-size:18px;">Detalle de Equipos</h2>
+                    <span class="text-sub">Mostrando resultados filtrados.</span>
                 </div>
                 <div data-html2canvas-ignore="true">
-                    <input type="text" id="table_search" class="search-input" placeholder="Buscar generador..." oninput="onSearchTable(this.value)">
+                    <input type="text" id="table_search" class="search-input" placeholder="Buscar por generador..." oninput="onSearchTable(this.value)">
                 </div>
             </div>
             <div style="overflow-x: auto;">
@@ -308,22 +324,38 @@ def generar_dashboard():
                     <tbody id="table_body"></tbody>
                 </table>
             </div>
-            <div id="no_data_message" style="display:none; padding: 40px; text-align: center; color: var(--artimo-gris);">
-                No se encontraron registros bajo estos filtros.
+            <div id="no_data_message" style="display:none; padding: 40px; text-align: center; color: var(--text-sub);">
+                No se encontraron registros.
             </div>
         </div>
     </div>
 
     <script>
         const rawData = {data_json};
-        let currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
+        let currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', modelo: null, estado: null, tecnologia: null, gravedad: null }};
         let searchTerm = '';
 
-        const plotlyLayoutBase = {{
-            font: {{ family: 'Open Sans, Arial, sans-serif', color: '#1A1A1A' }},
-            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-            margin: {{ t: 40, b: 30, l: 40, r: 20 }}, height: 280
-        }};
+        // Función para cambiar modo oscuro/claro y repintar gráficas
+        function toggleDarkMode() {{
+            document.body.classList.toggle('dark-mode');
+            updateDashboard(); // Redibujar para que Plotly tome el nuevo color de texto
+        }}
+
+        function getLayoutBase() {{
+            const isDark = document.body.classList.contains('dark-mode');
+            const fontColor = isDark ? '#E0E0E0' : '#1A1A1A';
+            return {{
+                font: {{ family: 'Open Sans, Arial, sans-serif', color: fontColor }},
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: {{ t: 40, b: 30, l: 40, r: 20 }}, height: 280
+            }};
+        }}
+
+        // Función para truncar etiquetas muy largas en el eje Y
+        function truncateLabel(str, maxLen = 22) {{
+            if (!str) return '';
+            return str.length > maxLen ? str.substring(0, maxLen - 2) + '..' : str;
+        }}
 
         window.addEventListener('DOMContentLoaded', () => {{
             populateDropdowns();
@@ -360,37 +392,37 @@ def generar_dashboard():
 
         function filterByDropdown(key, val) {{
             currentFilters[key] = val;
-            if(key === 'dealer') {{
-                currentFilters.cliente = 'TODOS';
-            }}
+            if(key === 'dealer') currentFilters.cliente = 'TODOS';
             populateDropdowns(); 
             updateDashboard();
         }}
 
         function applyQuickWins() {{
-            currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', estado: null, tecnologia: null, gravedad: '1 a 3 días' }};
+            currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', modelo: null, estado: null, tecnologia: null, gravedad: '1 a 3 días' }};
             populateDropdowns();
+            document.getElementById('table_search').value = ''; searchTerm = '';
             updateDashboard();
             document.getElementById('table_title').scrollIntoView({{ behavior: 'smooth' }});
         }}
         
         function clearFilter(key) {{
-            if(key === 'dealer' || key === 'cliente') {{
-                currentFilters[key] = 'TODOS';
-            }} else {{
-                currentFilters[key] = null;
-            }}
+            if(key === 'dealer' || key === 'cliente') currentFilters[key] = 'TODOS';
+            else currentFilters[key] = null;
             populateDropdowns();
             updateDashboard();
         }}
         
         function clearAllFilters() {{
-            currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
+            currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', modelo: null, estado: null, tecnologia: null, gravedad: null }};
+            document.getElementById('table_search').value = ''; searchTerm = '';
             populateDropdowns();
             updateDashboard();
         }}
         
-        function onSearchTable(val) {{ searchTerm = val.toLowerCase().trim(); renderTableOnly(); }}
+        function onSearchTable(val) {{ 
+            searchTerm = val.toLowerCase().trim(); 
+            renderTableOnly(); 
+        }}
 
         function getFilteredData() {{
             return rawData.filter(d => 
@@ -398,6 +430,7 @@ def generar_dashboard():
                 (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente) &&
                 (!currentFilters.estado || d.estado === currentFilters.estado) &&
                 (!currentFilters.tecnologia || d.tecnologia === currentFilters.tecnologia) &&
+                (!currentFilters.modelo || d.modelo === currentFilters.modelo) &&
                 (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad)
             );
         }}
@@ -422,6 +455,7 @@ def generar_dashboard():
             renderGravityChart(filteredData);
             renderTopDealersChart(filteredData);
             renderTopClientsChart(filteredData);
+            renderTopModelsChart(filteredData);
             renderTableOnly(filteredData);
         }}
 
@@ -436,19 +470,12 @@ def generar_dashboard():
                 }}
             }});
             if(has) container.innerHTML += `<button class="btn-clear" onclick="clearAllFilters()">Limpiar Filtros</button>`;
-            else container.innerHTML = `<span class="text-sub">Haz clic en las gráficas o usa los menús superiores para filtrar.</span>`;
+            else container.innerHTML = `<span class="text-sub">Usa los menús superiores o haz clic en gráficas y mapa para filtrar.</span>`;
         }}
 
         function renderMapChart(data) {{
             const validData = data.filter(d => d.lat !== null && d.lon !== null);
-            
-            const colorMap = {{
-                'Conectado': '#10B981',
-                '1 a 3 días': '#F59E0B',
-                '4 a 7 días': '#E84C22',
-                'Más de 7 días': '#BC1818',
-                'Sin registro previo': '#5A5A59'
-            }};
+            const colorMap = {{ 'Conectado': '#10B981', '1 a 3 días': '#F59E0B', '4 a 7 días': '#E84C22', 'Más de 7 días': '#BC1818', 'Sin registro previo': '#5A5A59' }};
 
             const traces = [];
             const groups = [...new Set(validData.map(d => d.gravedad))];
@@ -462,32 +489,36 @@ def generar_dashboard():
                     mode: 'markers',
                     marker: {{ size: 10, color: colorMap[g] || '#5A5A59' }},
                     name: g,
-                    text: groupData.map(d => `<b>${{d.generador}}</b><br>Cliente: ${{d.cliente}}<br>Estado: ${{d.estado}}<br><i>${{d.plan_accion}}</i>`),
+                    customdata: groupData.map(d => d.generador), // Guardamos nombre del generador real para el click
+                    text: groupData.map(d => `<b>${{d.generador}}</b><br>Cliente: ${{d.cliente}}<br><i>Clic para filtrar tabla</i>`),
                     hoverinfo: 'text'
                 }});
             }});
 
             const layout = {{
-                ...plotlyLayoutBase,
+                ...getLayoutBase(),
                 height: 450,
-                title: {{ text: '<b>Ubicación Geográfica de Equipos</b>', font: {{size: 16}}, x: 0.5 }},
-                mapbox: {{ 
-                    style: 'open-street-map', 
-                    center: {{lat: 4.5709, lon: -74.2973}}, // Coordenadas centrales aprox. de Colombia
-                    zoom: 4.5 
-                }},
-                showlegend: true,
-                legend: {{ orientation: 'h', y: -0.1 }},
-                margin: {{ t: 50, b: 20, l: 10, r: 10 }}
+                title: {{ text: '<b>Ubicación de Equipos (Clic en punto para buscar)</b>', font: {{size: 16}}, x: 0.5 }},
+                mapbox: {{ style: 'open-street-map', center: {{lat: 4.5709, lon: -74.2973}}, zoom: 4.5 }},
+                showlegend: true, legend: {{ orientation: 'h', y: -0.1 }}, margin: {{ t: 50, b: 20, l: 10, r: 10 }}
             }};
 
             Plotly.react('chart_map', traces, layout, {{ responsive: true, displayModeBar: false }});
+            
+            // Evento de clic en el mapa para buscar en la tabla
+            document.getElementById('chart_map').removeAllListeners('plotly_click');
+            document.getElementById('chart_map').on('plotly_click', d => {{
+                const clickedGen = d.points[0].customdata;
+                document.getElementById('table_search').value = clickedGen;
+                onSearchTable(clickedGen);
+                document.getElementById('table_title').scrollIntoView({{ behavior: 'smooth' }});
+            }});
         }}
 
         function renderDonaChart(data) {{
             const op = data.filter(d => d.estado === 'Operando').length;
             const off = data.filter(d => d.estado === 'Fuera de cobertura').length;
-            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Estado General</b>', font: {{size: 15}}, x: 0.5 }}, legend: {{ orientation: 'h', y: -0.1 }} }};
+            const layout = {{ ...getLayoutBase(), title: {{ text: '<b>Estado General</b>', font: {{size: 15}}, x: 0.5 }}, legend: {{ orientation: 'h', y: -0.1 }} }};
             Plotly.react('chart_dona', [{{ values: [op, off], labels: ['Operando', 'Fuera de cobertura'], type: 'pie', hole: 0.5, marker: {{ colors: ['#10B981', '#BC1818'] }}, textinfo: 'value+percent' }}], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_dona').removeAllListeners('plotly_click');
             document.getElementById('chart_dona').on('plotly_click', d => {{ currentFilters.estado = (currentFilters.estado === d.points[0].label) ? null : d.points[0].label; updateDashboard(); }});
@@ -500,7 +531,7 @@ def generar_dashboard():
                 d.estado === 'Operando' ? map[d.tecnologia].op++ : map[d.tecnologia].off++;
             }});
             const x = Object.keys(map).sort();
-            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Estado por Tecnología</b>', font: {{size: 15}}, x: 0.5 }}, barmode: 'group', legend: {{ orientation: 'h', y: -0.2 }} }};
+            const layout = {{ ...getLayoutBase(), title: {{ text: '<b>Estado por Tecnología</b>', font: {{size: 15}}, x: 0.5 }}, barmode: 'group', legend: {{ orientation: 'h', y: -0.2 }} }};
             Plotly.react('chart_tech', [ {{ x: x, y: x.map(k=>map[k].op), name: 'Operando', type: 'bar', marker: {{ color: '#10B981' }} }}, {{ x: x, y: x.map(k=>map[k].off), name: 'Offline', type: 'bar', marker: {{ color: '#BC1818' }} }} ], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_tech').removeAllListeners('plotly_click');
             document.getElementById('chart_tech').on('plotly_click', d => {{ currentFilters.tecnologia = (currentFilters.tecnologia === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
@@ -510,7 +541,7 @@ def generar_dashboard():
             const map = {{ "1 a 3 días": 0, "4 a 7 días": 0, "Más de 7 días": 0, "Sin registro previo": 0 }};
             data.filter(d => d.estado !== 'Operando').forEach(d => {{ if(map[d.gravedad] !== undefined) map[d.gravedad]++; }});
             const x = Object.keys(map);
-            const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Gravedad (Mejor a Peor)</b>', font: {{size: 15}}, x: 0.5 }} }};
+            const layout = {{ ...getLayoutBase(), title: {{ text: '<b>Gravedad (Mejor a Peor)</b>', font: {{size: 15}}, x: 0.5 }} }};
             Plotly.react('chart_gravity', [{{ x: x, y: x.map(k=>map[k]), type: 'bar', marker: {{ color: ['#F59E0B', '#E84C22', '#BC1818', '#5A5A59'] }} }}], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_gravity').removeAllListeners('plotly_click');
             document.getElementById('chart_gravity').on('plotly_click', d => {{ currentFilters.gravedad = (currentFilters.gravedad === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
@@ -522,15 +553,22 @@ def generar_dashboard():
             const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
             
             const layout = {{ 
-                ...plotlyLayoutBase, 
+                ...getLayoutBase(), 
                 title: {{ text: '<b>Top Dealers (Offline)</b>', font: {{size: 15}}, x: 0.5 }}, 
-                margin: {{ t:40, b:30, l:20, r:20 }}, yaxis: {{ automargin: true }} 
+                margin: {{ t:40, b:30, l:170, r:20 }} // Margen L ampliado para textos largos
             }};
             
-            Plotly.react('chart_top_dealers', [{{ y: sorted.map(i=>i[0]), x: sorted.map(i=>i[1]), type: 'bar', orientation: 'h', marker: {{ color: '#BC1818' }} }}], layout, {{ responsive: true, displayModeBar: false }});
+            Plotly.react('chart_top_dealers', [{{ 
+                y: sorted.map(i=>truncateLabel(i[0], 25)), 
+                x: sorted.map(i=>i[1]), 
+                type: 'bar', orientation: 'h', marker: {{ color: '#BC1818' }},
+                text: sorted.map(i=>i[0]), hoverinfo: 'x+text' // Hover muestra nombre completo
+            }}], layout, {{ responsive: true, displayModeBar: false }});
+            
             document.getElementById('chart_top_dealers').removeAllListeners('plotly_click');
             document.getElementById('chart_top_dealers').on('plotly_click', d => {{
-                filterByDropdown('dealer', (currentFilters.dealer === d.points[0].y) ? 'TODOS' : d.points[0].y);
+                // Recuperamos el nombre real del dealer desde 'text'
+                filterByDropdown('dealer', (currentFilters.dealer === d.points[0].text) ? 'TODOS' : d.points[0].text);
             }});
         }}
 
@@ -540,15 +578,46 @@ def generar_dashboard():
             const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
             
             const layout = {{ 
-                ...plotlyLayoutBase, 
+                ...getLayoutBase(), 
                 title: {{ text: '<b>Top Clientes (Offline)</b>', font: {{size: 15}}, x: 0.5 }}, 
-                margin: {{ t:40, b:30, l:20, r:20 }}, yaxis: {{ automargin: true }} 
+                margin: {{ t:40, b:30, l:170, r:20 }} // Margen L ampliado
             }};
             
-            Plotly.react('chart_top_clients', [{{ y: sorted.map(i=>i[0]), x: sorted.map(i=>i[1]), type: 'bar', orientation: 'h', marker: {{ color: '#E84C22' }} }}], layout, {{ responsive: true, displayModeBar: false }});
+            Plotly.react('chart_top_clients', [{{ 
+                y: sorted.map(i=>truncateLabel(i[0], 25)), 
+                x: sorted.map(i=>i[1]), 
+                type: 'bar', orientation: 'h', marker: {{ color: '#E84C22' }},
+                text: sorted.map(i=>i[0]), hoverinfo: 'x+text'
+            }}], layout, {{ responsive: true, displayModeBar: false }});
+            
             document.getElementById('chart_top_clients').removeAllListeners('plotly_click');
             document.getElementById('chart_top_clients').on('plotly_click', d => {{
-                filterByDropdown('cliente', (currentFilters.cliente === d.points[0].y) ? 'TODOS' : d.points[0].y);
+                filterByDropdown('cliente', (currentFilters.cliente === d.points[0].text) ? 'TODOS' : d.points[0].text);
+            }});
+        }}
+
+        function renderTopModelsChart(data) {{
+            const map = {{}};
+            data.filter(d => d.estado !== 'Operando').forEach(d => map[d.modelo] = (map[d.modelo]||0) + 1);
+            const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+            
+            const layout = {{ 
+                ...getLayoutBase(), 
+                title: {{ text: '<b>Top Modelos/Scripts (Offline)</b>', font: {{size: 15}}, x: 0.5 }}, 
+                margin: {{ t:40, b:30, l:170, r:20 }} // Margen L ampliado
+            }};
+            
+            Plotly.react('chart_top_models', [{{ 
+                y: sorted.map(i=>truncateLabel(i[0], 25)), 
+                x: sorted.map(i=>i[1]), 
+                type: 'bar', orientation: 'h', marker: {{ color: '#F59E0B' }},
+                text: sorted.map(i=>i[0]), hoverinfo: 'x+text'
+            }}], layout, {{ responsive: true, displayModeBar: false }});
+            
+            document.getElementById('chart_top_models').removeAllListeners('plotly_click');
+            document.getElementById('chart_top_models').on('plotly_click', d => {{
+                currentFilters.modelo = (currentFilters.modelo === d.points[0].text) ? null : d.points[0].text;
+                updateDashboard();
             }});
         }}
 
@@ -629,7 +698,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard actualizado: Mapa Geográfico de Equipos incluido con éxito.")
+    print("Dashboard final actualizado: Interfaz mejorada, gráficas ajustadas, modo oscuro y Top Modelos añadidos.")
 
 if __name__ == "__main__":
     generar_dashboard()
