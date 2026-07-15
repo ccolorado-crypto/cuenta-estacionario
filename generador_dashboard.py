@@ -26,14 +26,10 @@ def generar_dashboard():
     df[col_fecha] = pd.to_datetime(df[col_fecha], errors='coerce').dt.date
     
     # LÓGICA DE FECHA DINÁMICA SEGURA
-    # 1. Tomamos la fecha real de ejecución del script.
     fecha_hoy_real = date.today()
-    
-    # 2. Extraemos las fechas válidas que NO sean mayores al día de hoy.
     fechas_validas = df[col_fecha].dropna()
     fechas_validas = fechas_validas[fechas_validas <= fecha_hoy_real]
     
-    # 3. La fecha de referencia dinámica será la máxima de esas fechas coherentes.
     if not fechas_validas.empty:
         fecha_ref = fechas_validas.max()
     else:
@@ -58,10 +54,16 @@ def generar_dashboard():
     rule4_list = ["comap ws40", "comap ws40 bci", "comaps"]
 
     for idx, row in df.iterrows():
+        tech_raw = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else "Desconocida"
+        tech_clean = tech_raw.lower()
+        
+        # 1. IGNORAR FILAS CON ARTIMO O PROLUB EN TECNOLOGIA (Aplica globalmente)
+        if "artimo" in tech_clean or "prolub" in tech_clean:
+            continue
+
         dealer = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else "Sin Dealer"
         cliente = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else "Sin Cliente"
         generador = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else "Sin Nombre"
-        tech = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else "Desconocida"
         modelo_raw = str(row.iloc[6]).strip() if pd.notna(row.iloc[6]) else "Sin Modelo"
         modelo_clean = modelo_raw.lower()
         
@@ -72,10 +74,8 @@ def generar_dashboard():
         dias_offline = -1
         plan_accion = ""
         
-        # 1. Definir el estado base utilizando la fecha_ref dinámica
         if pd.notna(raw_fecha):
             fecha_str = raw_fecha.strftime("%d/%m/%Y")
-            # Si transmitió en la fecha de referencia (o en el futuro por desajuste de su reloj) se considera Operando
             if raw_fecha >= fecha_ref:
                 status = "Operando"
                 gravity = "Conectado"
@@ -87,7 +87,6 @@ def generar_dashboard():
                 elif dias_offline <= 7: gravity = "4 a 7 días"
                 else: gravity = "Más de 7 días"
 
-        # 2. Definir el Plan de Acción (Reglas de Negocio)
         if modelo_clean in ["exemys digital", "exemysdigital"]:
             plan_accion = "🔄 URGENTE: Servidor Exemys se apagará. Recomendado cambiar a tecnología CAMKIT2."
         elif "exemys analoga" in modelo_clean or "exemys análoga" in modelo_clean:
@@ -111,7 +110,7 @@ def generar_dashboard():
             "dealer": dealer,
             "generador": generador,
             "cliente": cliente,
-            "tecnologia": tech,
+            "tecnologia": tech_raw,
             "modelo": modelo_raw,
             "fecha": fecha_str,
             "estado": status,
@@ -148,14 +147,14 @@ def generar_dashboard():
         body {{ font-family: 'Open Sans', Arial, sans-serif; font-weight: 400; background: #F4F5F7; color: var(--artimo-negro); margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
         
         .topbar {{ background: var(--artimo-negro); color: var(--artimo-blanco); min-height: 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); gap: 15px; }}
-        .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 300px; }}
+        .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px; }}
         .topbar-brand img {{ height: 48px; width: auto; object-fit: contain; }}
         .topbar-title-container {{ flex: 1; min-width: 0; }}
         .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
         .topbar-sub {{ font-size: 12px; color: #D1D5DB; margin: 0; margin-top: 2px; }}
         
-        .topbar-right {{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
-        .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 250px; }}
+        .topbar-right {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
+        .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 200px; }}
         
         .btn-action {{ padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; }}
         .btn-action:hover {{ opacity: 0.85; }}
@@ -167,7 +166,7 @@ def generar_dashboard():
         .alert-box {{ background: rgba(90,90,89,0.1); border-left: 4px solid var(--artimo-gris); padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }}
         .alert-box-info p {{ margin: 0; font-size: 13px; font-weight: 600; }}
         .active-tags {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
-        .tag {{ background: var(--artimo-gris-claro); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px; }}
+        .tag {{ background: var(--artimo-gris-claro); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 6px; text-transform: uppercase; }}
         .tag button {{ background: none; border: none; color: var(--artimo-rojo-oscuro); font-weight: bold; cursor: pointer; }}
         .btn-clear {{ background: rgba(188,24,24,0.15); color: var(--artimo-rojo-oscuro); border: 1px solid rgba(188,24,24,0.3); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer; }}
 
@@ -182,7 +181,7 @@ def generar_dashboard():
         .kpi-p2 .kpi-value {{ color: var(--artimo-rojo-vivo); }}
         .kpi-ok .kpi-value {{ color: #10B981; }}
 
-        .card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 24px; }}
+        .card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 24px; }}
         .card {{ background: var(--artimo-blanco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; }}
 
         .table-section {{ background: var(--artimo-blanco); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #E5E7EB; overflow: hidden; }}
@@ -207,16 +206,19 @@ def generar_dashboard():
         <div class="topbar-brand">
             <img src="artimo_logo.jpg" onerror="this.src='https://via.placeholder.com/120x40/BC1818/FFFFFF?text=ARTIMO';" alt="Logo"/>
             <div class="topbar-title-container">
-                <p class="topbar-title">{nombre_dealer_principal} Dashboard</p>
+                <p class="topbar-title">Panel de Conectividad</p>
                 <p class="topbar-sub">Actualizado: {fecha_actualizacion}</p>
             </div>
         </div>
         <div class="topbar-right">
-            <button onclick="exportToCSV()" class="btn-action btn-csv">📥 CSV</button>
-            <button onclick="exportToPDF()" class="btn-action btn-pdf">📄 PDF</button>
-            <select id="client_select" class="filter-select" onchange="filterByClient(this.value)">
+            <select id="dealer_select" class="filter-select" onchange="filterByDropdown('dealer', this.value)">
+                <option value="TODOS">-- TODOS LOS DEALERS --</option>
+            </select>
+            <select id="client_select" class="filter-select" onchange="filterByDropdown('cliente', this.value)">
                 <option value="TODOS">-- TODOS LOS CLIENTES --</option>
             </select>
+            <button onclick="exportToCSV()" class="btn-action btn-csv">📥 CSV</button>
+            <button onclick="exportToPDF()" class="btn-action btn-pdf">📄 PDF</button>
         </div>
     </div>
 
@@ -225,7 +227,7 @@ def generar_dashboard():
             <div class="alert-box-info">
                 <p>Filtros Activos</p>
                 <div id="active_filters" class="active-tags">
-                    <span class="text-sub">Haz clic en las gráficas para filtrar.</span>
+                    <span class="text-sub">Haz clic en las gráficas o usa los menús superiores para filtrar.</span>
                 </div>
             </div>
             <div>
@@ -237,7 +239,7 @@ def generar_dashboard():
             <div class="kpi-card">
                 <div class="kpi-label">Total Generadores</div>
                 <div id="kpi_total" class="kpi-value">0</div>
-                <div class="kpi-sub">Unidades registradas</div>
+                <div class="kpi-sub">Equipos válidos registrados</div>
             </div>
             <div class="kpi-card kpi-ok">
                 <div class="kpi-label">Conectividad</div>
@@ -261,13 +263,14 @@ def generar_dashboard():
             <div class="card"><div id="chart_tech" style="width:100%;"></div></div>
             <div class="card"><div id="chart_gravity" style="width:100%;"></div></div>
             <div class="card"><div id="chart_top_dealers" style="width:100%;"></div></div>
+            <div class="card"><div id="chart_top_clients" style="width:100%;"></div></div>
         </div>
 
         <div class="table-section">
             <div class="table-header">
                 <div>
                     <h2 id="table_title">Detalle de Equipos</h2>
-                    <span class="text-sub">Según filtros seleccionados.</span>
+                    <span class="text-sub">Mostrando resultados según filtros seleccionados.</span>
                 </div>
                 <div data-html2canvas-ignore="true">
                     <input type="text" id="table_search" class="search-input" placeholder="Buscar generador..." oninput="onSearchTable(this.value)">
@@ -291,14 +294,14 @@ def generar_dashboard():
                 </table>
             </div>
             <div id="no_data_message" style="display:none; padding: 40px; text-align: center; color: var(--artimo-gris);">
-                No se encontraron registros.
+                No se encontraron registros bajo estos filtros.
             </div>
         </div>
     </div>
 
     <script>
         const rawData = {data_json};
-        let currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null, dealer: null }};
+        let currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
         let searchTerm = '';
 
         const plotlyLayoutBase = {{
@@ -308,38 +311,70 @@ def generar_dashboard():
         }};
 
         window.addEventListener('DOMContentLoaded', () => {{
-            populateClientDropdown();
+            populateDropdowns();
             updateDashboard();
         }});
 
-        function populateClientDropdown() {{
-            const select = document.getElementById('client_select');
-            const uniqueClients = [...new Set(rawData.map(d => d.cliente))].sort();
+        function populateDropdowns() {{
+            const dealerSelect = document.getElementById('dealer_select');
+            const clientSelect = document.getElementById('client_select');
+            
+            // Limpiar opciones previas
+            dealerSelect.innerHTML = '<option value="TODOS">-- TODOS LOS DEALERS --</option>';
+            clientSelect.innerHTML = '<option value="TODOS">-- TODOS LOS CLIENTES --</option>';
+
+            // Llenar Dealers
+            const uniqueDealers = [...new Set(rawData.map(d => d.dealer))].sort();
+            uniqueDealers.forEach(d => {{
+                const opt = document.createElement('option');
+                opt.value = opt.textContent = d;
+                if(currentFilters.dealer === d) opt.selected = true;
+                dealerSelect.appendChild(opt);
+            }});
+
+            // Llenar Clientes (Lógica de Cascada)
+            let clientsData = rawData;
+            if(currentFilters.dealer !== 'TODOS') {{
+                clientsData = rawData.filter(d => d.dealer === currentFilters.dealer);
+            }}
+            const uniqueClients = [...new Set(clientsData.map(d => d.cliente))].sort();
             uniqueClients.forEach(c => {{
                 const opt = document.createElement('option');
                 opt.value = opt.textContent = c;
-                select.appendChild(opt);
+                if(currentFilters.cliente === c) opt.selected = true;
+                clientSelect.appendChild(opt);
             }});
         }}
 
+        function filterByDropdown(key, val) {{
+            currentFilters[key] = val;
+            if(key === 'dealer') {{
+                currentFilters.cliente = 'TODOS';
+            }}
+            populateDropdowns(); 
+            updateDashboard();
+        }}
+
         function applyQuickWins() {{
-            currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: '1 a 3 días', dealer: null }};
-            document.getElementById('client_select').value = 'TODOS';
+            currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', estado: null, tecnologia: null, gravedad: '1 a 3 días' }};
+            populateDropdowns();
             updateDashboard();
             document.getElementById('table_title').scrollIntoView({{ behavior: 'smooth' }});
         }}
-
-        function filterByClient(val) {{ currentFilters.cliente = val; updateDashboard(); }}
         
         function clearFilter(key) {{
-            if(key === 'cliente') document.getElementById('client_select').value = 'TODOS';
-            currentFilters[key] = (key === 'cliente') ? 'TODOS' : null;
+            if(key === 'dealer' || key === 'cliente') {{
+                currentFilters[key] = 'TODOS';
+            }} else {{
+                currentFilters[key] = null;
+            }}
+            populateDropdowns();
             updateDashboard();
         }}
         
         function clearAllFilters() {{
-            currentFilters = {{ cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null, dealer: null }};
-            document.getElementById('client_select').value = 'TODOS';
+            currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', estado: null, tecnologia: null, gravedad: null }};
+            populateDropdowns();
             updateDashboard();
         }}
         
@@ -347,11 +382,11 @@ def generar_dashboard():
 
         function getFilteredData() {{
             return rawData.filter(d => 
+                (currentFilters.dealer === 'TODOS' || d.dealer === currentFilters.dealer) &&
                 (currentFilters.cliente === 'TODOS' || d.cliente === currentFilters.cliente) &&
                 (!currentFilters.estado || d.estado === currentFilters.estado) &&
                 (!currentFilters.tecnologia || d.tecnologia === currentFilters.tecnologia) &&
-                (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad) &&
-                (!currentFilters.dealer || d.dealer === currentFilters.dealer)
+                (!currentFilters.gravedad || d.gravedad === currentFilters.gravedad)
             );
         }}
 
@@ -373,6 +408,7 @@ def generar_dashboard():
             renderTechChart(filteredData);
             renderGravityChart(filteredData);
             renderTopDealersChart(filteredData);
+            renderTopClientsChart(filteredData);
             renderTableOnly(filteredData);
         }}
 
@@ -383,11 +419,11 @@ def generar_dashboard():
             Object.keys(currentFilters).forEach(key => {{
                 if(currentFilters[key] && currentFilters[key] !== 'TODOS') {{
                     has = true;
-                    container.innerHTML += `<div class="tag">${{key.toUpperCase()}}: ${{currentFilters[key]}} <button onclick="clearFilter('${{key}}')">×</button></div>`;
+                    container.innerHTML += `<div class="tag">${{key}}: ${{currentFilters[key]}} <button onclick="clearFilter('${{key}}')">×</button></div>`;
                 }}
             }});
             if(has) container.innerHTML += `<button class="btn-clear" onclick="clearAllFilters()">Limpiar Filtros</button>`;
-            else container.innerHTML = `<span class="text-sub">Haz clic en las gráficas para filtrar.</span>`;
+            else container.innerHTML = `<span class="text-sub">Haz clic en las gráficas o usa los menús superiores para filtrar.</span>`;
         }}
 
         function renderDonaChart(data) {{
@@ -417,7 +453,6 @@ def generar_dashboard():
             data.filter(d => d.estado !== 'Operando').forEach(d => {{ if(map[d.gravedad] !== undefined) map[d.gravedad]++; }});
             const x = Object.keys(map);
             const layout = {{ ...plotlyLayoutBase, title: {{ text: '<b>Gravedad (Mejor a Peor)</b>', font: {{size: 15}}, x: 0.5 }} }};
-            // Colores progresivos: Amarillo, Naranja, Rojo Oscuro, Gris
             Plotly.react('chart_gravity', [{{ x: x, y: x.map(k=>map[k]), type: 'bar', marker: {{ color: ['#F59E0B', '#E84C22', '#BC1818', '#5A5A59'] }} }}], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_gravity').removeAllListeners('plotly_click');
             document.getElementById('chart_gravity').on('plotly_click', d => {{ currentFilters.gravedad = (currentFilters.gravedad === d.points[0].x) ? null : d.points[0].x; updateDashboard(); }});
@@ -425,22 +460,37 @@ def generar_dashboard():
 
         function renderTopDealersChart(data) {{
             const map = {{}};
-            // Filtramos solo los equipos offline y agrupamos por Dealer
             data.filter(d => d.estado !== 'Operando').forEach(d => map[d.dealer] = (map[d.dealer]||0) + 1);
             const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
             
             const layout = {{ 
                 ...plotlyLayoutBase, 
-                title: {{ text: '<b>Top Dealers Desconectados</b>', font: {{size: 15}}, x: 0.5 }}, 
-                margin: {{ t:40, b:30, l:20, r:20 }},
-                yaxis: {{ automargin: true }} 
+                title: {{ text: '<b>Top Dealers (Offline)</b>', font: {{size: 15}}, x: 0.5 }}, 
+                margin: {{ t:40, b:30, l:20, r:20 }}, yaxis: {{ automargin: true }} 
             }};
             
             Plotly.react('chart_top_dealers', [{{ y: sorted.map(i=>i[0]), x: sorted.map(i=>i[1]), type: 'bar', orientation: 'h', marker: {{ color: '#BC1818' }} }}], layout, {{ responsive: true, displayModeBar: false }});
             document.getElementById('chart_top_dealers').removeAllListeners('plotly_click');
             document.getElementById('chart_top_dealers').on('plotly_click', d => {{
-                currentFilters.dealer = (currentFilters.dealer === d.points[0].y) ? null : d.points[0].y;
-                updateDashboard();
+                filterByDropdown('dealer', (currentFilters.dealer === d.points[0].y) ? 'TODOS' : d.points[0].y);
+            }});
+        }}
+
+        function renderTopClientsChart(data) {{
+            const map = {{}};
+            data.filter(d => d.estado !== 'Operando').forEach(d => map[d.cliente] = (map[d.cliente]||0) + 1);
+            const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+            
+            const layout = {{ 
+                ...plotlyLayoutBase, 
+                title: {{ text: '<b>Top Clientes (Offline)</b>', font: {{size: 15}}, x: 0.5 }}, 
+                margin: {{ t:40, b:30, l:20, r:20 }}, yaxis: {{ automargin: true }} 
+            }};
+            
+            Plotly.react('chart_top_clients', [{{ y: sorted.map(i=>i[0]), x: sorted.map(i=>i[1]), type: 'bar', orientation: 'h', marker: {{ color: '#E84C22' }} }}], layout, {{ responsive: true, displayModeBar: false }});
+            document.getElementById('chart_top_clients').removeAllListeners('plotly_click');
+            document.getElementById('chart_top_clients').on('plotly_click', d => {{
+                filterByDropdown('cliente', (currentFilters.cliente === d.points[0].y) ? 'TODOS' : d.points[0].y);
             }});
         }}
 
@@ -519,7 +569,7 @@ def generar_dashboard():
     html_final = dashboard_html.replace('{data_json}', data_json)
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard actualizado correctamente con filtros de Dealer, Gravedad Dinámica y comparativo de Tecnología.")
+    print("Dashboard actualizado correctamente con filtros de Dealer, exclusión de tecnología global y Top Clientes.")
 
 if __name__ == "__main__":
     generar_dashboard()
