@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import os
 from datetime import date, datetime, timedelta
 import sys
 
@@ -124,7 +125,50 @@ def generar_dashboard():
             "lon": lon
         })
 
+    # --- LÓGICA DE HISTORIAL DE DATOS ---
+    total_current = len(records)
+    online_current = sum(1 for r in records if r["estado"] == "Operando")
+    offline_current = total_current - online_current
+    
+    pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
+    pct_offline = 100 - pct_online
+    
+    fecha_hoy_str = date.today().strftime("%Y-%m-%d")
+    
+    os.makedirs('data', exist_ok=True)
+    historial_path = 'data/historial.json'
+    historial = []
+    
+    if os.path.exists(historial_path):
+        try:
+            with open(historial_path, 'r', encoding='utf-8') as f:
+                historial = json.load(f)
+        except:
+            pass
+            
+    updated = False
+    for entry in historial:
+        if entry['fecha'] == fecha_hoy_str:
+            entry['online_pct'] = pct_online
+            entry['offline_pct'] = pct_offline
+            updated = True
+            break
+    
+    if not updated:
+        historial.append({
+            'fecha': fecha_hoy_str,
+            'online_pct': pct_online,
+            'offline_pct': pct_offline
+        })
+        
+    historial = historial[-52:] # Guardar las ultimas 52 entradas (1 año aprox)
+    
+    with open(historial_path, 'w', encoding='utf-8') as f:
+        json.dump(historial, f, ensure_ascii=False, indent=2)
+        
+    history_json = json.dumps(historial, ensure_ascii=False)
     data_json = json.dumps(records, ensure_ascii=False)
+    
     colombia_time = datetime.utcnow() - timedelta(hours=5)
     fecha_actualizacion = colombia_time.strftime("%d/%m/%Y a las %H:%M (Hora Col)")
 
@@ -201,7 +245,7 @@ def generar_dashboard():
         .kpi-card.prio-1 {{ border-top: 3px solid var(--artimo-rojo-oscuro); }}
         .kpi-card.prio-2 {{ border-top: 3px solid var(--artimo-rojo-vivo); }}
         .kpi-label {{ font-size: 12px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; }}
-        .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1; color: var(--text-main); }}
+        .kpi-value {{ font-size: 38px; font-weight: 700; line-height: 1.1; color: var(--text-main); display: flex; align-items: baseline; gap: 8px; }}
         .kpi-sub {{ font-size: 12px; color: var(--text-sub); }}
         .kpi-p1 .kpi-value {{ color: var(--artimo-rojo-oscuro); }}
         .kpi-p2 .kpi-value {{ color: var(--artimo-rojo-vivo); }}
@@ -286,9 +330,13 @@ def generar_dashboard():
             </div>
         </div>
 
+        <!-- Se ha agregado la gráfica histórica en la parte superior -->
+        <div class="card-grid">
+            <div class="card map-card"><div id="chart_history" style="width:100%; height:300px;"></div></div>
+        </div>
+
         <div class="card-grid">
             <div class="card map-card"><div id="chart_map" style="width:100%; height:450px;"></div></div>
-            
             <div class="card"><div id="chart_dona" style="width:100%;"></div></div>
             <div class="card"><div id="chart_tech" style="width:100%;"></div></div>
             <div class="card"><div id="chart_gravity" style="width:100%;"></div></div>
@@ -332,12 +380,14 @@ def generar_dashboard():
 
     <script>
         const rawData = {data_json};
+        const historyData = {history_json};
         let currentFilters = {{ dealer: 'TODOS', cliente: 'TODOS', modelo: null, estado: null, tecnologia: null, gravedad: null }};
         let searchTerm = '';
 
         function toggleDarkMode() {{
             document.body.classList.toggle('dark-mode');
             updateDashboard(); 
+            renderHistoryChart();
         }}
 
         function getLayoutBase() {{
@@ -358,6 +408,7 @@ def generar_dashboard():
         window.addEventListener('DOMContentLoaded', () => {{
             populateDropdowns();
             updateDashboard();
+            renderHistoryChart();
         }});
 
         function populateDropdowns() {{
@@ -439,11 +490,14 @@ def generar_dashboard():
             const total = filteredData.length;
             const online = filteredData.filter(d => d.estado === 'Operando').length;
             const offline = total - online;
+            const onlinePct = total > 0 ? Math.round((online/total)*100) : 0;
+            const offlinePct = total > 0 ? Math.round((offline/total)*100) : 0;
             const lostDays = filteredData.reduce((acc, curr) => acc + (curr.dias_offline > 0 ? curr.dias_offline : 0), 0);
 
+            // Cambios de KPI con número y porcentaje integrado estéticamente
             document.getElementById('kpi_total').textContent = total;
-            document.getElementById('kpi_online').textContent = total > 0 ? Math.round((online/total)*100) + '%' : '0%';
-            document.getElementById('kpi_offline').textContent = offline;
+            document.getElementById('kpi_online').innerHTML = `${{onlinePct}}% <span style="font-size: 16px; font-weight: 600; color: var(--text-sub);">(${{online}} eq.)</span>`;
+            document.getElementById('kpi_offline').innerHTML = `${{offline}} <span style="font-size: 16px; font-weight: 600; color: var(--text-sub);">(${{offlinePct}}%)</span>`;
             document.getElementById('kpi_lost_days').textContent = lostDays.toLocaleString();
 
             renderActiveFilterTags();
@@ -469,6 +523,20 @@ def generar_dashboard():
             }});
             if(has) container.innerHTML += `<button class="btn-clear" onclick="clearAllFilters()">Limpiar Filtros</button>`;
             else container.innerHTML = `<span class="text-sub">Usa los menús superiores o haz clic en gráficas y mapa para filtrar.</span>`;
+        }}
+
+        // NUEVO Gráfico Histórico
+        function renderHistoryChart() {{
+            if(!historyData || historyData.length === 0) return;
+            const x = historyData.map(d => d.fecha);
+            const yOp = historyData.map(d => d.online_pct);
+            const yOff = historyData.map(d => d.offline_pct);
+            
+            const trace1 = {{ x: x, y: yOp, name: '% Conectividad', type: 'scatter', mode: 'lines+markers', line: {{color: '#10B981', width: 3}}, marker: {{size: 8}} }};
+            const trace2 = {{ x: x, y: yOff, name: '% Offline', type: 'scatter', mode: 'lines+markers', line: {{color: '#BC1818', width: 3}}, marker: {{size: 8}} }};
+            
+            const layout = {{ ...getLayoutBase(), height: 300, title: {{ text: '<b>Evolución Semanal de Conectividad</b>', font: {{size: 16}}, x: 0.5 }}, yaxis: {{ range: [0, 105], title: 'Porcentaje (%)' }}, margin: {{ t: 40, b: 30, l: 50, r: 20 }}, legend: {{ orientation: 'h', y: -0.2 }} }};
+            Plotly.react('chart_history', [trace1, trace2], layout, {{ responsive: true, displayModeBar: false }});
         }}
 
         function renderMapChart(data) {{
@@ -512,13 +580,37 @@ def generar_dashboard():
             }});
         }}
 
+        // Gráfico Dona Actualizado con Cliente Específico
         function renderDonaChart(data) {{
-            const op = data.filter(d => d.estado === 'Operando').length;
-            const off = data.filter(d => d.estado === 'Fuera de cobertura').length;
+            const targetClientStr = "CANAL - LAP TECHNOLOGIES | COL - TORRE DE CONTROL".toLowerCase();
+            
+            const normalOp = data.filter(d => d.estado === 'Operando' && d.cliente.toLowerCase() !== targetClientStr).length;
+            const normalOff = data.filter(d => d.estado === 'Fuera de cobertura' && d.cliente.toLowerCase() !== targetClientStr).length;
+            const lapTotal = data.filter(d => d.cliente.toLowerCase() === targetClientStr).length;
+
+            const values = [];
+            const labels = [];
+            const colors = [];
+
+            if (normalOp > 0) {{ values.push(normalOp); labels.push('Operando'); colors.push('#10B981'); }}
+            if (normalOff > 0) {{ values.push(normalOff); labels.push('Fuera de cobertura'); colors.push('#BC1818'); }}
+            if (lapTotal > 0) {{ values.push(lapTotal); labels.push('LAP (No Comisionados)'); colors.push('#3B82F6'); /* Color azul distintivo */ }}
+
             const layout = {{ ...getLayoutBase(), title: {{ text: '<b>Estado General</b>', font: {{size: 15}}, x: 0.5 }}, legend: {{ orientation: 'h', y: -0.1 }} }};
-            Plotly.react('chart_dona', [{{ values: [op, off], labels: ['Operando', 'Fuera de cobertura'], type: 'pie', hole: 0.5, marker: {{ colors: ['#10B981', '#BC1818'] }}, textinfo: 'value+percent' }}], layout, {{ responsive: true, displayModeBar: false }});
+            Plotly.react('chart_dona', [{{ values: values, labels: labels, type: 'pie', hole: 0.5, marker: {{ colors: colors }}, textinfo: 'value+percent' }}], layout, {{ responsive: true, displayModeBar: false }});
+            
             document.getElementById('chart_dona').removeAllListeners('plotly_click');
-            document.getElementById('chart_dona').on('plotly_click', d => {{ currentFilters.estado = (currentFilters.estado === d.points[0].label) ? null : d.points[0].label; updateDashboard(); }});
+            document.getElementById('chart_dona').on('plotly_click', d => {{ 
+                const label = d.points[0].label;
+                if (label === 'LAP (No Comisionados)') {{
+                    // Si se da click en la rebanada LAP, filtramos por el cliente (buscamos el nombre real para mantener casing exacto)
+                    const realClientName = data.find(c => c.cliente.toLowerCase() === targetClientStr)?.cliente || "CANAL - LAP TECHNOLOGIES | COL - TORRE DE CONTROL";
+                    currentFilters.cliente = (currentFilters.cliente === realClientName) ? 'TODOS' : realClientName;
+                }} else {{
+                    currentFilters.estado = (currentFilters.estado === label) ? null : label; 
+                }}
+                updateDashboard(); 
+            }});
         }}
 
         function renderTechChart(data) {{
@@ -560,7 +652,7 @@ def generar_dashboard():
                 x: sorted.map(i=>i[1]), 
                 type: 'bar', orientation: 'h', marker: {{ color: '#BC1818' }},
                 text: sorted.map(i=>i[0]), 
-                textposition: 'none', // Esta es la línea que oculta el texto sobre la barra
+                textposition: 'none',
                 hoverinfo: 'text+x' 
             }}], layout, {{ responsive: true, displayModeBar: false }});
             
@@ -586,7 +678,7 @@ def generar_dashboard():
                 x: sorted.map(i=>i[1]), 
                 type: 'bar', orientation: 'h', marker: {{ color: '#E84C22' }},
                 text: sorted.map(i=>i[0]), 
-                textposition: 'none', // Oculta el texto sobre la barra
+                textposition: 'none',
                 hoverinfo: 'text+x'
             }}], layout, {{ responsive: true, displayModeBar: false }});
             
@@ -612,7 +704,7 @@ def generar_dashboard():
                 x: sorted.map(i=>i[1]), 
                 type: 'bar', orientation: 'h', marker: {{ color: '#F59E0B' }},
                 text: sorted.map(i=>i[0]), 
-                textposition: 'none', // Oculta el texto sobre la barra
+                textposition: 'none',
                 hoverinfo: 'text+x'
             }}], layout, {{ responsive: true, displayModeBar: false }});
             
@@ -697,10 +789,11 @@ def generar_dashboard():
 </body>
 </html>"""
 
-    html_final = dashboard_html.replace('{data_json}', data_json)
+    html_final = dashboard_html.replace('{data_json}', data_json).replace('{history_json}', history_json)
+    
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard final actualizado: Error de superposición de texto en gráficas de barras solucionado.")
+    print("Dashboard final actualizado: Cambios solicitados implementados con éxito.")
 
 if __name__ == "__main__":
     generar_dashboard()
