@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 import sys
 
 def safe_float(val):
+    """Convierte de forma segura los valores de coordenadas a decimales."""
     try:
         if pd.isna(val):
             return None
@@ -16,20 +17,7 @@ def generar_dashboard():
     print("Iniciando procesamiento de datos...")
     
     try:
-        # Leer el archivo ODS
         df = pd.read_excel('data/data.ods', engine='odf')
-        
-        # --- FILTRADO DINÁMICO DE FILAS FANTASMA/VACÍAS ---
-        col_generador_check = df.columns[3] # Columna de Generador
-        col_dealer_check = df.columns[1]    # Columna de Dealer
-        
-        # Eliminamos filas totalmente vacías o sin nombre de generador/dealer
-        df = df.dropna(subset=[col_generador_check, col_dealer_check], how='all')
-        df = df[df[col_generador_check].astype(str).str.strip() != '']
-        df = df[df[col_generador_check].astype(str).str.strip().str.lower() != 'nan']
-        
-        print(f"Total de máquinas válidas encontradas dinámicamente: {len(df)}")
-        
     except Exception as e:
         print(f"Error crítico al leer el archivo: {e}")
         sys.exit(1)
@@ -41,8 +29,16 @@ def generar_dashboard():
 
     df[col_fecha] = pd.to_datetime(df[col_fecha], errors='coerce').dt.date
     
-    # Tomar la fecha real del día de ejecución
-    fecha_ref = date.today()
+    fecha_hoy_real = date.today()
+    fechas_validas = df[col_fecha].dropna()
+    fechas_validas = fechas_validas[fechas_validas <= fecha_hoy_real]
+    
+    if not fechas_validas.empty:
+        fecha_ref = fechas_validas.max()
+    else:
+        fecha_ref = fecha_hoy_real
+
+    print(f"Fecha dinámica de corte utilizada: {fecha_ref}")
 
     records = []
     
@@ -129,7 +125,7 @@ def generar_dashboard():
             "lon": lon
         })
 
-    # --- HISTORIAL DESDE CERO ---
+    # --- LÓGICA DE HISTORIAL DE DATOS ---
     total_current = len(records)
     online_current = sum(1 for r in records if r["estado"] == "Operando")
     offline_current = total_current - online_current
@@ -137,18 +133,35 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    año, semana, _ = fecha_ref.isocalendar()
-    semana_str = f"Semana {semana} - {año}"
+    fecha_hoy_str = date.today().strftime("%Y-%m-%d")
     
     os.makedirs('data', exist_ok=True)
     historial_path = 'data/historial.json'
+    historial = []
     
-    # Creamos únicamente la semana actual limpia
-    historial = [{
-        'semana': semana_str,
-        'online_pct': pct_online,
-        'offline_pct': pct_offline
-    }]
+    if os.path.exists(historial_path):
+        try:
+            with open(historial_path, 'r', encoding='utf-8') as f:
+                historial = json.load(f)
+        except:
+            pass
+            
+    updated = False
+    for entry in historial:
+        if entry['fecha'] == fecha_hoy_str:
+            entry['online_pct'] = pct_online
+            entry['offline_pct'] = pct_offline
+            updated = True
+            break
+    
+    if not updated:
+        historial.append({
+            'fecha': fecha_hoy_str,
+            'online_pct': pct_online,
+            'offline_pct': pct_offline
+        })
+        
+    historial = historial[-52:] # Guardar las ultimas 52 entradas (1 año aprox)
     
     with open(historial_path, 'w', encoding='utf-8') as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
@@ -175,6 +188,8 @@ def generar_dashboard():
             --artimo-naranja:       #E84C22;
             --artimo-amarillo:      #F59E0B;
             --artimo-verde:         #10B981;
+            
+            /* Variables Light Mode */
             --bg-color: #F4F5F7;
             --card-bg: #FFFFFF;
             --text-main: #1A1A1A;
@@ -187,6 +202,7 @@ def generar_dashboard():
         }}
 
         body.dark-mode {{
+            /* Variables Dark Mode */
             --bg-color: #121212;
             --card-bg: #1E1E1E;
             --text-main: #E0E0E0;
@@ -199,13 +215,16 @@ def generar_dashboard():
         }}
 
         body {{ font-family: 'Open Sans', Arial, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 0; transition: background 0.3s, color 0.3s; }}
+        
         .topbar {{ background: #111; color: #FFF; min-height: 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.5); gap: 15px; }}
         .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px; }}
         .topbar-brand img {{ height: 48px; width: auto; object-fit: contain; }}
         .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; }}
         .topbar-sub {{ font-size: 12px; color: #9CA3AF; margin: 0; margin-top: 2px; }}
+        
         .topbar-right {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
         .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 200px; }}
+        
         .btn-action {{ padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; color: #fff; }}
         .btn-action:hover {{ opacity: 0.85; }}
         .btn-dark {{ background: #4B5563; }}
@@ -311,6 +330,7 @@ def generar_dashboard():
             </div>
         </div>
 
+        <!-- Se ha agregado la gráfica histórica en la parte superior -->
         <div class="card-grid">
             <div class="card map-card"><div id="chart_history" style="width:100%; height:300px;"></div></div>
         </div>
@@ -474,6 +494,7 @@ def generar_dashboard():
             const offlinePct = total > 0 ? Math.round((offline/total)*100) : 0;
             const lostDays = filteredData.reduce((acc, curr) => acc + (curr.dias_offline > 0 ? curr.dias_offline : 0), 0);
 
+            // Cambios de KPI con número y porcentaje integrado estéticamente
             document.getElementById('kpi_total').textContent = total;
             document.getElementById('kpi_online').innerHTML = `${{onlinePct}}% <span style="font-size: 16px; font-weight: 600; color: var(--text-sub);">(${{online}} eq.)</span>`;
             document.getElementById('kpi_offline').innerHTML = `${{offline}} <span style="font-size: 16px; font-weight: 600; color: var(--text-sub);">(${{offlinePct}}%)</span>`;
@@ -504,25 +525,17 @@ def generar_dashboard():
             else container.innerHTML = `<span class="text-sub">Usa los menús superiores o haz clic en gráficas y mapa para filtrar.</span>`;
         }}
 
+        // NUEVO Gráfico Histórico
         function renderHistoryChart() {{
             if(!historyData || historyData.length === 0) return;
-            
-            const x = historyData.map(d => d.semana);
+            const x = historyData.map(d => d.fecha);
             const yOp = historyData.map(d => d.online_pct);
             const yOff = historyData.map(d => d.offline_pct);
             
             const trace1 = {{ x: x, y: yOp, name: '% Conectividad', type: 'scatter', mode: 'lines+markers', line: {{color: '#10B981', width: 3}}, marker: {{size: 8}} }};
             const trace2 = {{ x: x, y: yOff, name: '% Offline', type: 'scatter', mode: 'lines+markers', line: {{color: '#BC1818', width: 3}}, marker: {{size: 8}} }};
             
-            const layout = {{ 
-                ...getLayoutBase(), 
-                height: 300, 
-                title: {{ text: '<b>Evolución Semanal de Conectividad</b>', font: {{size: 16}}, x: 0.5 }}, 
-                xaxis: {{ type: 'category', title: 'Semana del Año' }}, 
-                yaxis: {{ range: [0, 105], title: 'Porcentaje (%)' }}, 
-                margin: {{ t: 40, b: 40, l: 50, r: 20 }}, 
-                legend: {{ orientation: 'h', y: -0.2 }} 
-            }};
+            const layout = {{ ...getLayoutBase(), height: 300, title: {{ text: '<b>Evolución Semanal de Conectividad</b>', font: {{size: 16}}, x: 0.5 }}, yaxis: {{ range: [0, 105], title: 'Porcentaje (%)' }}, margin: {{ t: 40, b: 30, l: 50, r: 20 }}, legend: {{ orientation: 'h', y: -0.2 }} }};
             Plotly.react('chart_history', [trace1, trace2], layout, {{ responsive: true, displayModeBar: false }});
         }}
 
@@ -567,6 +580,7 @@ def generar_dashboard():
             }});
         }}
 
+        // Gráfico Dona Actualizado con Cliente Específico
         function renderDonaChart(data) {{
             const targetClientStr = "CANAL - LAP TECHNOLOGIES | COL - TORRE DE CONTROL".toLowerCase();
             
@@ -580,7 +594,7 @@ def generar_dashboard():
 
             if (normalOp > 0) {{ values.push(normalOp); labels.push('Operando'); colors.push('#10B981'); }}
             if (normalOff > 0) {{ values.push(normalOff); labels.push('Fuera de cobertura'); colors.push('#BC1818'); }}
-            if (lapTotal > 0) {{ values.push(lapTotal); labels.push('LAP (No Comisionados)'); colors.push('#3B82F6'); }}
+            if (lapTotal > 0) {{ values.push(lapTotal); labels.push('LAP (No Comisionados)'); colors.push('#3B82F6'); /* Color azul distintivo */ }}
 
             const layout = {{ ...getLayoutBase(), title: {{ text: '<b>Estado General</b>', font: {{size: 15}}, x: 0.5 }}, legend: {{ orientation: 'h', y: -0.1 }} }};
             Plotly.react('chart_dona', [{{ values: values, labels: labels, type: 'pie', hole: 0.5, marker: {{ colors: colors }}, textinfo: 'value+percent' }}], layout, {{ responsive: true, displayModeBar: false }});
@@ -589,6 +603,7 @@ def generar_dashboard():
             document.getElementById('chart_dona').on('plotly_click', d => {{ 
                 const label = d.points[0].label;
                 if (label === 'LAP (No Comisionados)') {{
+                    // Si se da click en la rebanada LAP, filtramos por el cliente (buscamos el nombre real para mantener casing exacto)
                     const realClientName = data.find(c => c.cliente.toLowerCase() === targetClientStr)?.cliente || "CANAL - LAP TECHNOLOGIES | COL - TORRE DE CONTROL";
                     currentFilters.cliente = (currentFilters.cliente === realClientName) ? 'TODOS' : realClientName;
                 }} else {{
@@ -749,7 +764,7 @@ def generar_dashboard():
                 csvRows.push(values.join(','));
             }});
 
-            const blob = new Blob(["\uFEFF" + csvRows.join('\n')], {{ type: 'text/csv;charset=utf-8;' }});
+            const blob = new Blob(["\\uFEFF" + csvRows.join('\\n')], {{ type: 'text/csv;charset=utf-8;' }});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
@@ -778,7 +793,7 @@ def generar_dashboard():
     
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard dinámico generado exitosamente.")
+    print("Dashboard final actualizado: Cambios solicitados implementados con éxito.")
 
 if __name__ == "__main__":
     generar_dashboard()
