@@ -30,7 +30,7 @@ jobs:
         pip install pandas odfpy 
 
     - name: Ejecutar script de Python
-      run: python NOMBRE_DE_TU_SCRIPT.py 
+      run: python generador_dashboard.py
 
     - name: Subir cambios a GitHub
       run: |
