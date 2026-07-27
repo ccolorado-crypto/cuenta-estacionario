@@ -133,9 +133,8 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    # 1. CAMBIO CLAVE: Usar fecha_ref en vez de hoy. Así el dashboard respeta 
-    # la semana a la que pertenecen los datos (ej: Semana 30) y no crea puntos fantasma (Semana 31).
-    año, semana, _ = fecha_ref.isocalendar()
+    # FORZAMOS A USAR LA SEMANA DEL DÍA DE HOY (fecha_hoy_real) EN LUGAR DE LA FECHA DEL EXCEL
+    año, semana, _ = fecha_hoy_real.isocalendar()
     semana_str = f"Semana {semana} - {año}"
     
     os.makedirs('data', exist_ok=True)
@@ -149,10 +148,8 @@ def generar_dashboard():
         except:
             pass
             
-    # 2. CAMBIO CLAVE: Migrador automático de JSON antiguo.
     historial_dict = {}
     for entry in historial_bruto:
-        # Si detecta registros antiguos con 'fecha' exacta, los convierte a formato Semana
         if 'fecha' in entry and 'semana' not in entry:
             try:
                 dt_obj = datetime.strptime(entry['fecha'], "%Y-%m-%d").date()
@@ -162,8 +159,6 @@ def generar_dashboard():
             except:
                 pass
                 
-        # Agrupamos por semana. Si en el pasado corriste el script varios días de la misma semana, 
-        # esto dejará solo el último registro válido de esa semana, limpiando la gráfica.
         if 'semana' in entry:
             historial_dict[entry['semana']] = entry
 
@@ -783,7 +778,7 @@ def generar_dashboard():
                 csvRows.push(values.join(','));
             }});
 
-            const blob = new Blob(["\\uFEFF" + csvRows.join('\\n')], {{ type: 'text/csv;charset=utf-8;' }});
+            const blob = new Blob(["\uFEFF" + csvRows.join('\n')], {{ type: 'text/csv;charset=utf-8;' }});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
@@ -815,4 +810,4 @@ def generar_dashboard():
     print("Dashboard final actualizado: Cambios solicitados implementados con éxito.")
 
 if __name__ == "__main__":
-    generar_dashboard()
+    generador_dashboard = generar_dashboard()
