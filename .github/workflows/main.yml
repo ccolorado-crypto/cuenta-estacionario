@@ -1,7 +1,10 @@
 name: Actualizar Dashboard
 
 on:
-  workflow_dispatch: # Permite ejecutarlo manualmente con un botón
+  workflow_dispatch: # Permite ejecutarlo manualmente si lo deseas
+  push:
+    paths:
+      - 'data/data.ods' # ⚡ ¡NUEVO! Se ejecuta automáticamente cada vez que subas/reemplaces data.ods
 
 jobs:
   generar-dashboard:
@@ -27,7 +30,6 @@ jobs:
       - name: Mover HTML a la carpeta public
         run: |
           mkdir -p public
-          # Renombramos el archivo a index.html para que Vercel lo cargue por defecto
           mv dashboard_conectividad.html public/index.html
 
       - name: Subir cambios a GitHub
