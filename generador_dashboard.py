@@ -5,7 +5,6 @@ from datetime import date, datetime, timedelta
 import sys
 
 def safe_float(val):
-    """Convierte de forma segura los valores de coordenadas a decimales."""
     try:
         if pd.isna(val):
             return None
@@ -37,8 +36,6 @@ def generar_dashboard():
         fecha_ref = fechas_validas.max()
     else:
         fecha_ref = fecha_hoy_real
-
-    print(f"Fecha dinámica de corte utilizada: {fecha_ref}")
 
     records = []
     
@@ -125,7 +122,7 @@ def generar_dashboard():
             "lon": lon
         })
 
-    # --- LÓGICA DE HISTORIAL DESDE CERO (REINICIO TOTAL) ---
+    # --- FORZAR REINICIO COMPLETO DE HISTORIAL ---
     total_current = len(records)
     online_current = sum(1 for r in records if r["estado"] == "Operando")
     offline_current = total_current - online_current
@@ -133,21 +130,21 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    # Tomar la semana actual del año
+    # FORZAMOS SEMANA ACTUAL DEL CALENDARIO
     año, semana, _ = fecha_hoy_real.isocalendar()
     semana_str = f"Semana {semana} - {año}"
     
     os.makedirs('data', exist_ok=True)
     historial_path = 'data/historial.json'
     
-    # REINICIO TOTAL: Creamos la lista solo con la semana actual, ignorando cualquier pasado
+    # IGNORAMOS CUALQUIER ARCHIVO PREVIO
     historial = [{
         'semana': semana_str,
         'online_pct': pct_online,
         'offline_pct': pct_offline
     }]
     
-    # Sobrescribimos completamente el archivo JSON sin conservar registros viejos
+    # SOBRESCRIBIR SIN HISTORIA
     with open(historial_path, 'w', encoding='utf-8') as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
         
@@ -173,8 +170,6 @@ def generar_dashboard():
             --artimo-naranja:       #E84C22;
             --artimo-amarillo:      #F59E0B;
             --artimo-verde:         #10B981;
-            
-            /* Variables Light Mode */
             --bg-color: #F4F5F7;
             --card-bg: #FFFFFF;
             --text-main: #1A1A1A;
@@ -187,7 +182,6 @@ def generar_dashboard():
         }}
 
         body.dark-mode {{
-            /* Variables Dark Mode */
             --bg-color: #121212;
             --card-bg: #1E1E1E;
             --text-main: #E0E0E0;
@@ -200,16 +194,13 @@ def generar_dashboard():
         }}
 
         body {{ font-family: 'Open Sans', Arial, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 0; transition: background 0.3s, color 0.3s; }}
-        
         .topbar {{ background: #111; color: #FFF; min-height: 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.5); gap: 15px; }}
         .topbar-brand {{ display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px; }}
         .topbar-brand img {{ height: 48px; width: auto; object-fit: contain; }}
         .topbar-title {{ font-size: 16px; font-weight: 600; margin: 0; line-height: 1.2; }}
         .topbar-sub {{ font-size: 12px; color: #9CA3AF; margin: 0; margin-top: 2px; }}
-        
         .topbar-right {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
         .filter-select {{ background: #2a2a2a; color: white; border: 1px solid #4B5563; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: 'Open Sans'; outline: none; cursor: pointer; max-width: 200px; }}
-        
         .btn-action {{ padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; display: flex; align-items: center; gap: 6px; color: #fff; }}
         .btn-action:hover {{ opacity: 0.85; }}
         .btn-dark {{ background: #4B5563; }}
@@ -315,7 +306,6 @@ def generar_dashboard():
             </div>
         </div>
 
-        <!-- Gráfica histórica -->
         <div class="card-grid">
             <div class="card map-card"><div id="chart_history" style="width:100%; height:300px;"></div></div>
         </div>
