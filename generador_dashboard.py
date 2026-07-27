@@ -133,7 +133,9 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    fecha_hoy_str = date.today().strftime("%Y-%m-%d")
+    # Obtener la semana del año actual en formato "Semana X - Año"
+    año, semana, _ = date.today().isocalendar()
+    semana_str = f"Semana {semana} - {año}"
     
     os.makedirs('data', exist_ok=True)
     historial_path = 'data/historial.json'
@@ -148,15 +150,16 @@ def generar_dashboard():
             
     updated = False
     for entry in historial:
-        if entry['fecha'] == fecha_hoy_str:
+        if entry.get('semana') == semana_str or entry.get('fecha') == semana_str:
             entry['online_pct'] = pct_online
             entry['offline_pct'] = pct_offline
+            entry['semana'] = semana_str
             updated = True
             break
     
     if not updated:
         historial.append({
-            'fecha': fecha_hoy_str,
+            'semana': semana_str,
             'online_pct': pct_online,
             'offline_pct': pct_offline
         })
@@ -330,7 +333,7 @@ def generar_dashboard():
             </div>
         </div>
 
-        <!-- Se ha agregado la gráfica histórica en la parte superior -->
+        <!-- Gráfica histórica -->
         <div class="card-grid">
             <div class="card map-card"><div id="chart_history" style="width:100%; height:300px;"></div></div>
         </div>
@@ -494,7 +497,6 @@ def generar_dashboard():
             const offlinePct = total > 0 ? Math.round((offline/total)*100) : 0;
             const lostDays = filteredData.reduce((acc, curr) => acc + (curr.dias_offline > 0 ? curr.dias_offline : 0), 0);
 
-            // Cambios de KPI con número y porcentaje integrado estéticamente
             document.getElementById('kpi_total').textContent = total;
             document.getElementById('kpi_online').innerHTML = `${{onlinePct}}% <span style="font-size: 16px; font-weight: 600; color: var(--text-sub);">(${{online}} eq.)</span>`;
             document.getElementById('kpi_offline').innerHTML = `${{offline}} <span style="font-size: 16px; font-weight: 600; color: var(--text-sub);">(${{offlinePct}}%)</span>`;
@@ -525,17 +527,26 @@ def generar_dashboard():
             else container.innerHTML = `<span class="text-sub">Usa los menús superiores o haz clic en gráficas y mapa para filtrar.</span>`;
         }}
 
-        // NUEVO Gráfico Histórico
+        // NUEVO Gráfico Histórico corregido
         function renderHistoryChart() {{
             if(!historyData || historyData.length === 0) return;
-            const x = historyData.map(d => d.fecha);
+            
+            const x = historyData.map(d => d.semana || d.fecha);
             const yOp = historyData.map(d => d.online_pct);
             const yOff = historyData.map(d => d.offline_pct);
             
             const trace1 = {{ x: x, y: yOp, name: '% Conectividad', type: 'scatter', mode: 'lines+markers', line: {{color: '#10B981', width: 3}}, marker: {{size: 8}} }};
             const trace2 = {{ x: x, y: yOff, name: '% Offline', type: 'scatter', mode: 'lines+markers', line: {{color: '#BC1818', width: 3}}, marker: {{size: 8}} }};
             
-            const layout = {{ ...getLayoutBase(), height: 300, title: {{ text: '<b>Evolución Semanal de Conectividad</b>', font: {{size: 16}}, x: 0.5 }}, yaxis: {{ range: [0, 105], title: 'Porcentaje (%)' }}, margin: {{ t: 40, b: 30, l: 50, r: 20 }}, legend: {{ orientation: 'h', y: -0.2 }} }};
+            const layout = {{ 
+                ...getLayoutBase(), 
+                height: 300, 
+                title: {{ text: '<b>Evolución Semanal de Conectividad</b>', font: {{size: 16}}, x: 0.5 }}, 
+                xaxis: {{ type: 'category', title: 'Semana del Año' }}, 
+                yaxis: {{ range: [0, 105], title: 'Porcentaje (%)' }}, 
+                margin: {{ t: 40, b: 40, l: 50, r: 20 }}, 
+                legend: {{ orientation: 'h', y: -0.2 }} 
+            }};
             Plotly.react('chart_history', [trace1, trace2], layout, {{ responsive: true, displayModeBar: false }});
         }}
 
@@ -580,7 +591,6 @@ def generar_dashboard():
             }});
         }}
 
-        // Gráfico Dona Actualizado con Cliente Específico
         function renderDonaChart(data) {{
             const targetClientStr = "CANAL - LAP TECHNOLOGIES | COL - TORRE DE CONTROL".toLowerCase();
             
@@ -594,7 +604,7 @@ def generar_dashboard():
 
             if (normalOp > 0) {{ values.push(normalOp); labels.push('Operando'); colors.push('#10B981'); }}
             if (normalOff > 0) {{ values.push(normalOff); labels.push('Fuera de cobertura'); colors.push('#BC1818'); }}
-            if (lapTotal > 0) {{ values.push(lapTotal); labels.push('LAP (No Comisionados)'); colors.push('#3B82F6'); /* Color azul distintivo */ }}
+            if (lapTotal > 0) {{ values.push(lapTotal); labels.push('LAP (No Comisionados)'); colors.push('#3B82F6'); }}
 
             const layout = {{ ...getLayoutBase(), title: {{ text: '<b>Estado General</b>', font: {{size: 15}}, x: 0.5 }}, legend: {{ orientation: 'h', y: -0.1 }} }};
             Plotly.react('chart_dona', [{{ values: values, labels: labels, type: 'pie', hole: 0.5, marker: {{ colors: colors }}, textinfo: 'value+percent' }}], layout, {{ responsive: true, displayModeBar: false }});
@@ -603,7 +613,6 @@ def generar_dashboard():
             document.getElementById('chart_dona').on('plotly_click', d => {{ 
                 const label = d.points[0].label;
                 if (label === 'LAP (No Comisionados)') {{
-                    // Si se da click en la rebanada LAP, filtramos por el cliente (buscamos el nombre real para mantener casing exacto)
                     const realClientName = data.find(c => c.cliente.toLowerCase() === targetClientStr)?.cliente || "CANAL - LAP TECHNOLOGIES | COL - TORRE DE CONTROL";
                     currentFilters.cliente = (currentFilters.cliente === realClientName) ? 'TODOS' : realClientName;
                 }} else {{
