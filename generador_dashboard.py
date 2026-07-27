@@ -133,38 +133,49 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    # Obtener la semana del año actual en formato "Semana X - Año"
-    año, semana, _ = date.today().isocalendar()
+    # 1. CAMBIO CLAVE: Usar fecha_ref en vez de hoy. Así el dashboard respeta 
+    # la semana a la que pertenecen los datos (ej: Semana 30) y no crea puntos fantasma (Semana 31).
+    año, semana, _ = fecha_ref.isocalendar()
     semana_str = f"Semana {semana} - {año}"
     
     os.makedirs('data', exist_ok=True)
     historial_path = 'data/historial.json'
-    historial = []
+    historial_bruto = []
     
     if os.path.exists(historial_path):
         try:
             with open(historial_path, 'r', encoding='utf-8') as f:
-                historial = json.load(f)
+                historial_bruto = json.load(f)
         except:
             pass
             
-    updated = False
-    for entry in historial:
-        if entry.get('semana') == semana_str or entry.get('fecha') == semana_str:
-            entry['online_pct'] = pct_online
-            entry['offline_pct'] = pct_offline
-            entry['semana'] = semana_str
-            updated = True
-            break
+    # 2. CAMBIO CLAVE: Migrador automático de JSON antiguo.
+    historial_dict = {}
+    for entry in historial_bruto:
+        # Si detecta registros antiguos con 'fecha' exacta, los convierte a formato Semana
+        if 'fecha' in entry and 'semana' not in entry:
+            try:
+                dt_obj = datetime.strptime(entry['fecha'], "%Y-%m-%d").date()
+                y, w, _ = dt_obj.isocalendar()
+                entry['semana'] = f"Semana {w} - {y}"
+                del entry['fecha']
+            except:
+                pass
+                
+        # Agrupamos por semana. Si en el pasado corriste el script varios días de la misma semana, 
+        # esto dejará solo el último registro válido de esa semana, limpiando la gráfica.
+        if 'semana' in entry:
+            historial_dict[entry['semana']] = entry
+
+    # Insertamos o actualizamos la semana de los datos que acabamos de leer
+    historial_dict[semana_str] = {
+        'semana': semana_str,
+        'online_pct': pct_online,
+        'offline_pct': pct_offline
+    }
     
-    if not updated:
-        historial.append({
-            'semana': semana_str,
-            'online_pct': pct_online,
-            'offline_pct': pct_offline
-        })
-        
-    historial = historial[-52:] # Guardar las ultimas 52 entradas (1 año aprox)
+    # Reconvertimos el diccionario a lista y nos quedamos con las últimas 52 semanas
+    historial = list(historial_dict.values())[-52:]
     
     with open(historial_path, 'w', encoding='utf-8') as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
@@ -527,11 +538,10 @@ def generar_dashboard():
             else container.innerHTML = `<span class="text-sub">Usa los menús superiores o haz clic en gráficas y mapa para filtrar.</span>`;
         }}
 
-        // NUEVO Gráfico Histórico corregido
         function renderHistoryChart() {{
             if(!historyData || historyData.length === 0) return;
             
-            const x = historyData.map(d => d.semana || d.fecha);
+            const x = historyData.map(d => d.semana);
             const yOp = historyData.map(d => d.online_pct);
             const yOff = historyData.map(d => d.offline_pct);
             
