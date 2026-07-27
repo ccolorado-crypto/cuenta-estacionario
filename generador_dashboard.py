@@ -16,7 +16,20 @@ def generar_dashboard():
     print("Iniciando procesamiento de datos...")
     
     try:
+        # Leer el archivo ODS
         df = pd.read_excel('data/data.ods', engine='odf')
+        
+        # --- FILTRADO DINÁMICO DE FILAS FANTASMA/VACÍAS ---
+        col_generador_check = df.columns[3] # Columna de Generador
+        col_dealer_check = df.columns[1]    # Columna de Dealer
+        
+        # Eliminamos filas totalmente vacías o sin nombre de generador/dealer
+        df = df.dropna(subset=[col_generador_check, col_dealer_check], how='all')
+        df = df[df[col_generador_check].astype(str).str.strip() != '']
+        df = df[df[col_generador_check].astype(str).str.strip().str.lower() != 'nan']
+        
+        print(f"Total de máquinas válidas encontradas dinámicamente: {len(df)}")
+        
     except Exception as e:
         print(f"Error crítico al leer el archivo: {e}")
         sys.exit(1)
@@ -28,14 +41,8 @@ def generar_dashboard():
 
     df[col_fecha] = pd.to_datetime(df[col_fecha], errors='coerce').dt.date
     
-    fecha_hoy_real = date.today()
-    fechas_validas = df[col_fecha].dropna()
-    fechas_validas = fechas_validas[fechas_validas <= fecha_hoy_real]
-    
-    if not fechas_validas.empty:
-        fecha_ref = fechas_validas.max()
-    else:
-        fecha_ref = fecha_hoy_real
+    # Tomar la fecha real del día de ejecución
+    fecha_ref = date.today()
 
     records = []
     
@@ -122,7 +129,7 @@ def generar_dashboard():
             "lon": lon
         })
 
-    # --- FORZAR REINICIO COMPLETO DE HISTORIAL ---
+    # --- HISTORIAL DESDE CERO ---
     total_current = len(records)
     online_current = sum(1 for r in records if r["estado"] == "Operando")
     offline_current = total_current - online_current
@@ -130,21 +137,19 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    # FORZAMOS SEMANA ACTUAL DEL CALENDARIO
-    año, semana, _ = fecha_hoy_real.isocalendar()
+    año, semana, _ = fecha_ref.isocalendar()
     semana_str = f"Semana {semana} - {año}"
     
     os.makedirs('data', exist_ok=True)
     historial_path = 'data/historial.json'
     
-    # IGNORAMOS CUALQUIER ARCHIVO PREVIO
+    # Creamos únicamente la semana actual limpia
     historial = [{
         'semana': semana_str,
         'online_pct': pct_online,
         'offline_pct': pct_offline
     }]
     
-    # SOBRESCRIBIR SIN HISTORIA
     with open(historial_path, 'w', encoding='utf-8') as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
         
@@ -773,7 +778,7 @@ def generar_dashboard():
     
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard reiniciado exitosamente desde cero.")
+    print("Dashboard dinámico generado exitosamente.")
 
 if __name__ == "__main__":
     generar_dashboard()
