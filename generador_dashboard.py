@@ -125,7 +125,7 @@ def generar_dashboard():
             "lon": lon
         })
 
-    # --- LÓGICA DE HISTORIAL DE DATOS ---
+    # --- LÓGICA DE HISTORIAL DESDE CERO (REINICIO TOTAL) ---
     total_current = len(records)
     online_current = sum(1 for r in records if r["estado"] == "Operando")
     offline_current = total_current - online_current
@@ -133,45 +133,21 @@ def generar_dashboard():
     pct_online = round((online_current / total_current) * 100) if total_current > 0 else 0
     pct_offline = 100 - pct_online
     
-    # FORZAMOS A USAR LA SEMANA DEL DÍA DE HOY (fecha_hoy_real) EN LUGAR DE LA FECHA DEL EXCEL
+    # Tomar la semana actual del año
     año, semana, _ = fecha_hoy_real.isocalendar()
     semana_str = f"Semana {semana} - {año}"
     
     os.makedirs('data', exist_ok=True)
     historial_path = 'data/historial.json'
-    historial_bruto = []
     
-    if os.path.exists(historial_path):
-        try:
-            with open(historial_path, 'r', encoding='utf-8') as f:
-                historial_bruto = json.load(f)
-        except:
-            pass
-            
-    historial_dict = {}
-    for entry in historial_bruto:
-        if 'fecha' in entry and 'semana' not in entry:
-            try:
-                dt_obj = datetime.strptime(entry['fecha'], "%Y-%m-%d").date()
-                y, w, _ = dt_obj.isocalendar()
-                entry['semana'] = f"Semana {w} - {y}"
-                del entry['fecha']
-            except:
-                pass
-                
-        if 'semana' in entry:
-            historial_dict[entry['semana']] = entry
-
-    # Insertamos o actualizamos la semana de los datos que acabamos de leer
-    historial_dict[semana_str] = {
+    # REINICIO TOTAL: Creamos la lista solo con la semana actual, ignorando cualquier pasado
+    historial = [{
         'semana': semana_str,
         'online_pct': pct_online,
         'offline_pct': pct_offline
-    }
+    }]
     
-    # Reconvertimos el diccionario a lista y nos quedamos con las últimas 52 semanas
-    historial = list(historial_dict.values())[-52:]
-    
+    # Sobrescribimos completamente el archivo JSON sin conservar registros viejos
     with open(historial_path, 'w', encoding='utf-8') as f:
         json.dump(historial, f, ensure_ascii=False, indent=2)
         
@@ -807,7 +783,7 @@ def generar_dashboard():
     
     with open('dashboard_conectividad.html', 'w', encoding='utf-8') as f:
         f.write(html_final)
-    print("Dashboard final actualizado: Cambios solicitados implementados con éxito.")
+    print("Dashboard reiniciado exitosamente desde cero.")
 
 if __name__ == "__main__":
-    generador_dashboard = generar_dashboard()
+    generar_dashboard()
