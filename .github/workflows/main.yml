@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'data/data.ods' # Se ejecuta automáticamente si modificas este archivo
-  workflow_dispatch:    # ¡Esta es la línea mágica que habilita el botón manual!
+      - 'data/data.ods'
+  workflow_dispatch:
 
 jobs:
   procesar-datos:
@@ -30,7 +30,7 @@ jobs:
         pip install pandas odfpy 
 
     - name: Ejecutar script de Python
-      run: python script.py 
+      run: python NOMBRE_DE_TU_SCRIPT.py 
 
     - name: Subir cambios a GitHub
       run: |
